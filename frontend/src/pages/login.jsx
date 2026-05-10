@@ -90,7 +90,7 @@ const Login = () => {
       if (res.ok) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        if (data.user.role === "ADMIN" || data.user.role === "MANAGER") {
+        if (data.user.role === "SUPERADMIN" || data.user.role === "MANAGER") {
           navigate("/admin");
         } else {
           navigate("/employee");

@@ -25,7 +25,8 @@ router.post("/register", async (req, res) => {
 
     // Trạng thái mặc định
     const status = "PENDING_ADMIN";
-
+    // Xác định role cuối cùng (nếu có role MANAGER thì giữ nguyên, còn lại mặc định là STAFF)
+    const finalRole = (role === "MANAGER") ? "MANAGER" : "STAFF";
     // Lưu vào DB
     const newUser = await pool.query(
       `INSERT INTO users (username, password, full_name, email, phone_number, role, status) 
@@ -36,7 +37,7 @@ router.post("/register", async (req, res) => {
         fullName,
         email,
         phone,
-        role || "STAFF",
+        finalRole, // <--- Truyền biến finalRole đã được kiểm duyệt vào đây
         status,
       ],
     );
