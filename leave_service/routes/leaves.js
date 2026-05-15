@@ -54,6 +54,11 @@ router.post("/", async (req, res) => {
   const currentYear = new Date().getFullYear();
 
   try {
+    // Check 0: Không nghỉ liền quá 3 ngày
+    if (total_days > 3) {
+      return res.status(400).json({ message: "Không được nghỉ liên tiếp quá 3 ngày để đảm bảo vận hành ca!" });
+    }
+
     // Check 1: Quỹ phép
     const userRes = await pool.query(
       "SELECT full_name, max_leave_days FROM users WHERE id = $1",

@@ -3,6 +3,15 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
+const redis = require("redis");
+
+// Khởi tạo Redis Client
+const redisClient = redis.createClient({
+  url: `redis://${process.env.REDIS_HOST || 'localhost'}:6379`
+});
+
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
+redisClient.connect().then(() => console.log('Connected to Redis for Auth'));
 
 // --- 1. API ĐĂNG KÝ (Register) ---
 router.post("/register", async (req, res) => {
@@ -52,7 +61,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// --- 2. API ĐĂNG NHẬP (Login) ---
+// --- 2. API ĐĂNG NHẬP (Login) --- 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -90,6 +99,12 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1d" },
     );
 
+    // --- QUAN TRỌNG: Lưu Session vào Redis ---
+    // Lưu key là ID người dùng, value là token. Thời gian sống (EX) là 86400 giây (1 ngày)
+    await redisClient.set(`session:${user.id}`, token, {
+      EX: 86400
+    });
+
     // --- QUAN TRỌNG: Tách mật khẩu ra, trả về toàn bộ thông tin còn lại ---
     const { password: hashedPassword, ...userInfo } = user;
 
@@ -101,6 +116,23 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Lỗi server khi đăng nhập" });
+  }
+});
+
+// --- 3. API ĐĂNG XUẤT (Logout) ---
+router.post("/logout", async (req, res) => {
+  const { userId } = req.body; // Hoặc lấy từ middleware decode token
+  if (!userId) {
+    return res.status(400).json({ message: "Cần userId để đăng xuất" });
+  }
+
+  try {
+    // Xóa session khỏi Redis
+    await redisClient.del(`session:${userId}`);
+    res.json({ message: "Đăng xuất thành công!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server khi đăng xuất" });
   }
 });
 

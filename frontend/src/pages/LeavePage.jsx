@@ -213,7 +213,6 @@ const LeavePage = () => {
                   style={styles.input}
                 />
               </div>
-            </div>
             <div
               style={{
                 background: "#f3f4f6",
@@ -223,9 +222,20 @@ const LeavePage = () => {
               }}
             >
               Tổng cộng:{" "}
-              <span style={{ color: "red", fontWeight: "bold" }}>
+              <span style={{ color: totalDays > 3 ? "red" : "#059669", fontWeight: "bold" }}>
                 {totalDays} ngày
               </span>
+              {totalDays > 3 && (
+                <div style={{ color: "red", marginTop: "5px", fontSize: "12px", fontWeight: "bold" }}>
+                  ⚠️ Tối đa 3 ngày nghỉ liên tiếp!
+                </div>
+              )}
+            </div>
+              {totalDays > 3 && (
+                <div style={{ color: "red", marginTop: "5px", fontSize: "12px", fontWeight: "bold" }}>
+                  ⚠️ Tối đa 3 ngày nghỉ liên tiếp!
+                </div>
+              )}
             </div>
             <button type="submit" style={styles.button}>
               Gửi Đơn
