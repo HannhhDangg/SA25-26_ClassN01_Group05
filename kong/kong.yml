@@ -3,6 +3,12 @@ _format_version: "2.1"
 services:
   - name: auth-service
     url: http://auth_service:3000
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 10 # Cực kỳ quan trọng: Chỉ cho phép 1 IP gọi API Auth/OTP 10 lần/phút
+          limit_by: ip
+          policy: locals
     routes:
       - name: auth-routes
         paths:
@@ -12,6 +18,12 @@ services:
 
   - name: leave-service
     url: http://leave_service:3000
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60 # Giới hạn 60 lượt gọi/phút cho các API thông thường (tránh DDoS)
+          limit_by: ip
+          policy: local
     routes:
       - name: leave-routes
         paths:

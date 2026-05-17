@@ -11,5 +11,18 @@ export default defineConfig({
     watch: {
       usePolling: true, // Bắt buộc cho Docker trên Windows để sửa code tự cập nhật
     },
+    proxy: {
+      "/api": {
+        target: "http://nginx:80",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/socket.io": {
+        target: "http://nginx:80",
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });

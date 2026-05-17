@@ -89,8 +89,9 @@ services:
   frontend:
     build: ./frontend
     environment:
+      # SỬA LẠI: URL API phải trỏ về Nginx (cổng 80) hoặc trực tiếp Kong nếu Nginx lỗi
       - REACT_APP_API_URL=http://localhost:80
-    command: npm run dev -- --host 0.0.0.0 --port 3000 # ✅ ĐÃ SỬA: Ép Vite mở cửa cho Nginx vào lấy diện mạo
+    # XÓA DÒNG "command: ..." cũ đi, vì file vite.config.js đã tự lo rồi
     ports:
       - "3000:3000"
     volumes:
