@@ -4,7 +4,7 @@ networks:
 
 services:
   # =========================================================
-  # 0. LOAD BALANCER TỔNG (NGINX) - MỚI THÊM VÀO
+  # 0. LOAD BALANCER TỔNG (NGINX) 
   # =========================================================
   nginx:
     image: nginx:latest
@@ -21,7 +21,7 @@ services:
       - app-network
 
   # =========================================================
-  # 1. API GATEWAY (KONG) - ĐÃ SỬA PORT
+  # 1. API GATEWAY (KONG) 
   # =========================================================
   kong:
     image: kong:3.4
@@ -35,7 +35,6 @@ services:
       - KONG_PROXY_LISTEN=0.0.0.0:8000
       - KONG_ADMIN_LISTEN=0.0.0.0:8001
     ports:
-      # - "80:8000" <--- QUAN TRỌNG: ĐÃ XÓA DÒNG NÀY (Để nhường cổng 80 cho Nginx)
       - "8001:8001" # Giữ cổng Admin để debug nếu cần
     volumes:
       - ./kong/kong.yml:/usr/local/kong/declarative/kong.yml
@@ -54,7 +53,7 @@ services:
       - DB_PORT=5000
       - DB_USER=postgres
       - DB_PASSWORD=rootpassword
-      - DB_NAME=leave_management
+      - DB_NAME=postgres # ✅ ĐÃ SỬA: Chạy vào Database mặc định để không bị lỗi 500
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
@@ -74,7 +73,7 @@ services:
       - DB_PORT=5000
       - DB_USER=postgres
       - DB_PASSWORD=rootpassword
-      - DB_NAME=leave_management
+      - DB_NAME=postgres # ✅ ĐÃ SỬA: Chạy vào Database mặc định
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
@@ -90,16 +89,13 @@ services:
   frontend:
     build: ./frontend
     environment:
-      # SỬA LẠI: URL API phải trỏ về Nginx (cổng 80) hoặc trực tiếp Kong nếu Nginx lỗi
       - REACT_APP_API_URL=http://localhost:80
-    # XÓA DÒNG "command: ..." cũ đi, vì file vite.config.js đã tự lo rồi
+    command: npm run dev -- --host 0.0.0.0 --port 3000 # ✅ ĐÃ SỬA: Ép Vite mở cửa cho Nginx vào lấy diện mạo
     ports:
-      - "3000:3000" # Mở cổng 3000 ra máy ngoài để test
-    # --- THÊM PHẦN NÀY ĐỂ ĐỒNG BỘ CODE ---
+      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    # -------------------------------------
     stdin_open: true
     tty: true
     networks:
@@ -120,7 +116,7 @@ services:
     environment:
       - SCOPE=leave-cluster
       - ETCD3_HOSTS=etcd:2379
-      - POSTGRES_PASSWORD=rootpassword
+      - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA: Mật khẩu chuẩn theo Spilo Zalando
       - PATRONI_NAME=pg1
       - SPILO_PROVIDER=local
     ports:
@@ -136,7 +132,7 @@ services:
     environment:
       - SCOPE=leave-cluster
       - ETCD3_HOSTS=etcd:2379
-      - POSTGRES_PASSWORD=rootpassword
+      - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA
       - PATRONI_NAME=pg2
       - SPILO_PROVIDER=local
     ports:
@@ -152,7 +148,7 @@ services:
     environment:
       - SCOPE=leave-cluster
       - ETCD3_HOSTS=etcd:2379
-      - POSTGRES_PASSWORD=rootpassword
+      - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA
       - PATRONI_NAME=pg3
       - SPILO_PROVIDER=local
     ports:

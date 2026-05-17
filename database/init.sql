@@ -1,7 +1,21 @@
+-- Dọn dẹp sạch sẽ CSDL cũ để tạo lại từ đầu (Rất tiện khi test)
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+
 -- ==========================================
--- PHẦN 1: QUẢN LÝ TÀI KHOẢN & NGHỈ PHÉP
+-- PHẦN 1: QUẢN LÝ TÀI KHOẢN, PHÒNG BAN & NGHỈ PHÉP
 -- ==========================================
 
+-- 1. Tạo bảng Phòng ban trước
+CREATE TABLE IF NOT EXISTS departments (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    manager_id INT, -- Sẽ được set khóa ngoại sau khi có bảng users
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Tạo bảng Users (Có liên kết với Phòng ban)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -10,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100),
     phone_number VARCHAR(15),
     avatar_url VARCHAR(255),
+    department_id INT REFERENCES departments(id) ON DELETE SET NULL, -- NHÂN VIÊN THUỘC PHÒNG NÀO?
     max_leave_days INT DEFAULT 12, 
     role VARCHAR(20) DEFAULT 'STAFF', 
     status VARCHAR(20) DEFAULT 'PENDING_ADMIN', 
@@ -20,10 +35,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 3. Cập nhật khóa ngoại Trưởng phòng cho bảng departments
+ALTER TABLE departments 
+ADD CONSTRAINT fk_dept_manager FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- 4. Bảng Đơn xin nghỉ phép
 CREATE TABLE IF NOT EXISTS leave_requests (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    leave_type VARCHAR(20) DEFAULT 'ANNUAL', -- THÊM: 'ANNUAL' (Phép năm có lương), 'UNPAID' (Không lương), 'SICK' (Ốm)
+    leave_type VARCHAR(20) DEFAULT 'ANNUAL', -- 'ANNUAL', 'UNPAID', 'SICK'
     reason TEXT,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
@@ -58,8 +78,8 @@ CREATE TABLE IF NOT EXISTS attendance_logs (
     check_in_ip VARCHAR(50),
     check_in_location VARCHAR(255), 
     check_out_time TIMESTAMP,
-    check_out_ip VARCHAR(50),       -- THÊM: Lưu IP lúc về
-    check_out_location VARCHAR(255),-- THÊM: Lưu tọa độ lúc về
+    check_out_ip VARCHAR(50),       
+    check_out_location VARCHAR(255),
     status VARCHAR(20) DEFAULT 'ON_TIME', 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, work_date) 
@@ -96,11 +116,10 @@ CREATE TABLE IF NOT EXISTS meetings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- THÊM MỚI: Bảng người tham gia cuộc họp
 CREATE TABLE IF NOT EXISTS meeting_attendees (
     meeting_id INT REFERENCES meetings(id) ON DELETE CASCADE,
     user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    status VARCHAR(20) DEFAULT 'PENDING', -- 'PENDING', 'ACCEPTED', 'DECLINED'
+    status VARCHAR(20) DEFAULT 'PENDING', 
     PRIMARY KEY (meeting_id, user_id)
 );
 
@@ -126,7 +145,7 @@ CREATE TABLE IF NOT EXISTS monthly_payrolls (
     base_salary DECIMAL(15, 2), 
     total_working_days INT,     
     total_leave_days INT,       
-    total_unpaid_leave_days INT DEFAULT 0, -- THÊM: Để trừ lương chính xác
+    total_unpaid_leave_days INT DEFAULT 0, 
     total_bonus DECIMAL(15, 2) DEFAULT 0,
     total_penalty DECIMAL(15, 2) DEFAULT 0,
     net_salary DECIMAL(15, 2) NOT NULL, 
@@ -136,9 +155,17 @@ CREATE TABLE IF NOT EXISTS monthly_payrolls (
 );
 
 -- ==========================================
--- TÀI KHOẢN MẶC ĐỊNH
+-- DỮ LIỆU MẪU (SEED DATA)
 -- ==========================================
-INSERT INTO users (username, password, full_name, email, role, status, base_salary) 
+
+-- 1. Tạo Phòng Ban
+INSERT INTO departments (name, description) VALUES 
+('Ban Giám Đốc', 'Quản lý điều hành chung'),
+('Phòng IT', 'Phát triển phần mềm & Hệ thống'),
+('Phòng Hành Chính Nhân Sự', 'Quản trị nhân lực');
+
+-- 2. Tạo Tài khoản Superadmin mặc định (Thuộc Ban Giám Đốc)
+INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id) 
 VALUES (
     'superadmin', 
     '$2b$10$/bKah2RLip2uUFFAE1vOIO8Ase7DDuTEnHnogZwVz5RCXeJBGDjGC', 
@@ -146,5 +173,6 @@ VALUES (
     'hnd10112005@gmail.com', 
     'SUPERADMIN', 
     'ACTIVE', 
-    50000000
+    50000000,
+    1 -- ID của Ban Giám Đốc
 );

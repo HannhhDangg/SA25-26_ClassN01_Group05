@@ -1,175 +1,98 @@
 import { useState, useEffect, useCallback } from "react";
-import { FaCalendarCheck, FaChartPie } from "react-icons/fa";
-// --- 1. THÊM IMPORT ---
+import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { toast } from "react-toastify";
+import { FaCalendarAlt, FaChartPie, FaPlusCircle, FaClipboardList } from "react-icons/fa";
 
 const EmployeeHome = () => {
-  const [user] = useState(JSON.parse(localStorage.getItem("user")));
+  const navigate = useNavigate();
+  const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}"));
   const [leaveCount, setLeaveCount] = useState(0);
   const [balance, setBalance] = useState({ used: 0, max: 12, remaining: 12 });
 
-  // --- 2. TÁCH HÀM FETCH DATA RA ĐỂ DÙNG LẠI ---
   const fetchData = useCallback(() => {
-    // Lấy thống kê hôm nay
-    fetch("/api/leave_ser/stats/today")
-      .then((res) => res.json())
-      .then((data) => setLeaveCount(data.count))
-      .catch((err) => console.error(err));
-
-    // Lấy quỹ phép cá nhân
+    fetch("/api/leave_ser/stats/today").then(r => r.json()).then(d => setLeaveCount(d.count || 0)).catch(() => { });
     if (user?.id) {
-      fetch(`/api/leave_ser/balance/${user.id}`)
-        .then((res) => res.json())
-        .then((data) => setBalance(data))
-        .catch((err) => console.error(err));
+      fetch(`/api/leave_ser/balance/${user.id}`).then(r => r.json()).then(d => setBalance(d)).catch(() => { });
     }
   }, [user]);
 
-  // Gọi fetch lần đầu
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // --- 3. THÊM SOCKET ĐỂ NHẬN THÔNG BÁO ---
   useEffect(() => {
-    const socket = io("/", {
-      transports: ["websocket", "polling"],
-      upgrade: true,
-    });
-
-    socket.on("leave_status_update", (data) => {
-      // Kiểm tra đúng người nhận
+    const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
+    socket.on("leave_status_update", data => {
       if (data.target_user_id == user.id) {
-        console.log("🔔 Trang chủ nhận thông báo:", data);
-
-        // Hiện Toastify
-        if (data.status === "APPROVED") {
-          toast.success(data.message);
-        } else if (data.status === "REJECTED") {
-          toast.error(data.message);
-        } else {
-          toast.info(data.message);
-        }
-
-        // 🔥 QUAN TRỌNG: Tải lại dữ liệu để cập nhật số dư phép ngay lập tức
+        data.status === "APPROVED" ? toast.success(data.message) : data.status === "REJECTED" ? toast.error(data.message) : toast.info(data.message);
         fetchData();
       }
     });
-
     return () => socket.disconnect();
   }, [user.id, fetchData]);
 
-  // --- PHẦN GIAO DIỆN GIỮ NGUYÊN ---
-  const percentage = Math.min((balance.used / balance.max) * 100, 100);
+  const pct = Math.min((balance.used / balance.max) * 100, 100);
 
   return (
-    <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-      <div className="card" style={{ textAlign: "center", padding: "40px" }}>
-        <h1 style={{ color: "var(--primary-color)", marginBottom: "10px" }}>
-          Xin chào, {user?.full_name || user?.username}!
-        </h1>
-        <p style={{ color: "var(--text-light)", fontSize: "18px" }}>
-          Chúc bạn một ngày làm việc hiệu quả!
-        </p>
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text)" }}>Xin chào, {user.full_name || user.username}! 👋</div>
+        <div style={{ fontSize: 13, color: "var(--text-sub)", marginTop: 3 }}>Chúc bạn một ngày làm việc hiệu quả!</div>
+      </div>
 
-        <div
-          style={{
-            margin: "40px 0",
-            display: "flex",
-            justifyContent: "center",
-            gap: "30px",
-            flexWrap: "wrap",
-          }}
-        >
-          {/* CARD 1: THỐNG KÊ HÔM NAY */}
-          <div style={cardStyle}>
-            <FaCalendarCheck size={40} color="#0284c7" />
-            <h3 style={{ margin: "10px 0", color: "#0369a1" }}>
-              Số người nghỉ hôm nay
-            </h3>
-            <div
-              style={{ fontSize: "40px", fontWeight: "bold", color: "#0284c7" }}
-            >
-              {leaveCount}{" "}
-              <span style={{ fontSize: "18px", color: "#7dd3fc" }}>/ 5</span>
+      <div className="two-col" style={{ marginBottom: 20 }}>
+        <div className="stat-card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div className="stat-card-icon" style={{ background: "#E0F2FE", color: "#0284C7", width: 48, height: 48, fontSize: 22, flexShrink: 0 }}><FaCalendarAlt /></div>
+          <div style={{ flex: 1 }}>
+            <div className="stat-card-label">Số người nghỉ hôm nay</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <div className="stat-card-value" style={{ color: "#0284C7" }}>{leaveCount}</div>
+              <div style={{ fontSize: 14, color: "#7DD3FC" }}>/5</div>
             </div>
-            {leaveCount >= 5 ? (
-              <div style={{ color: "#ef4444", fontWeight: "bold" }}>
-                ⚠️ Đã đầy lịch!
-              </div>
-            ) : (
-              <div style={{ color: "#16a34a", fontWeight: "bold" }}>
-                ✅ Có thể xin nghỉ
-              </div>
-            )}
-          </div>
-
-          {/* CARD 2: QUỸ PHÉP CÁ NHÂN */}
-          <div
-            style={{
-              ...cardStyle,
-              border: "1px solid #d8b4fe",
-              background: "#f3e8ff",
-            }}
-          >
-            <FaChartPie size={40} color="#9333ea" />
-            <h3 style={{ margin: "10px 0", color: "#7e22ce" }}>
-              Quỹ phép năm nay
-            </h3>
-
-            <div
-              style={{ fontSize: "40px", fontWeight: "bold", color: "#9333ea" }}
-            >
-              {balance.used}{" "}
-              <span style={{ fontSize: "18px", color: "#d8b4fe" }}>
-                / {balance.max}
-              </span>
-            </div>
-
-            {/* Thanh tiến độ */}
-            <div
-              style={{
-                width: "100%",
-                height: "8px",
-                background: "#e9d5ff",
-                borderRadius: "4px",
-                marginTop: "10px",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${percentage}%`,
-                  height: "100%",
-                  background: percentage >= 100 ? "#ef4444" : "#a855f7",
-                  transition: "width 0.5s ease",
-                }}
-              ></div>
-            </div>
-
-            <div
-              style={{ marginTop: "5px", fontSize: "14px", color: "#6b21a8" }}
-            >
-              Còn lại: <b>{balance.remaining}</b> ngày
-            </div>
+            {leaveCount >= 5
+              ? <div style={{ fontSize: 12, color: "#EF4444", fontWeight: 500, marginTop: 2 }}>⚠️ Đã đầy lịch!</div>
+              : <div style={{ fontSize: 12, color: "#16A34A", fontWeight: 500, marginTop: 2 }}>✅ Có thể xin nghỉ</div>
+            }
           </div>
         </div>
+
+        <div className="stat-card" style={{ border: "1px solid #D8B4FE" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+            <div className="stat-card-icon" style={{ background: "#F3E8FF", color: "#9333EA", width: 40, height: 40, fontSize: 18, flexShrink: 0 }}><FaChartPie /></div>
+            <div>
+              <div className="stat-card-label">Quỹ phép năm nay</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 22, fontWeight: 600, color: "#9333EA" }}>{balance.used}</span>
+                <span style={{ fontSize: 13, color: "#D8B4FE" }}>/ {balance.max}</span>
+              </div>
+            </div>
+          </div>
+          <div className="progress-bar" style={{ background: "#E9D5FF" }}>
+            <div className="progress-fill" style={{ width: `${pct}%`, background: pct >= 100 ? "#EF4444" : "#A855F7" }} />
+          </div>
+          <div style={{ marginTop: 6, fontSize: 12, color: "#6B21A8" }}>Còn lại: <b>{balance.remaining}</b> ngày</div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 12 }}>Thao tác nhanh</div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        {[
+          { icon: <FaPlusCircle />, label: "Tạo đơn nghỉ phép", color: "var(--primary)", bg: "var(--primary-light)", path: "/employee/leaves/new" },
+          { icon: <FaClipboardList />, label: "Lịch sử đơn nghỉ", color: "var(--success)", bg: "var(--success-bg)", path: "/employee/leaves/history" },
+          { icon: <FaCalendarAlt />, label: "Xem lịch làm việc", color: "var(--warning)", bg: "var(--warning-bg)", path: "/employee/schedule" },
+        ].map((a, i) => (
+          <button key={i} onClick={() => navigate(a.path)} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "12px 18px", borderRadius: "var(--r-md)",
+            background: a.bg, color: a.color, border: "none", cursor: "pointer",
+            fontWeight: 500, fontSize: 13.5, fontFamily: "var(--font)",
+            transition: "filter 0.15s"
+          }} onMouseEnter={e => e.currentTarget.style.filter = "brightness(0.95)"}
+            onMouseLeave={e => e.currentTarget.style.filter = "brightness(1)"}>
+            {a.icon}{a.label}
+          </button>
+        ))}
       </div>
     </div>
   );
 };
-
-const cardStyle = {
-  background: "#f0f9ff",
-  padding: "20px",
-  borderRadius: "16px",
-  width: "300px",
-  border: "1px solid #bae6fd",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
-};
-
 export default EmployeeHome;

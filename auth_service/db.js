@@ -8,12 +8,10 @@ const pool = new Pool({
   database: process.env.DB_NAME || "leave_management",
   password: process.env.DB_PASSWORD || "rootpassword",
   port: process.env.DB_PORT || 5432,
-
-  // --- THÊM ĐOẠN NÀY ĐỂ SỬA LỖI KẾT NỐI ---
+  // Đã bật lại SSL để PostgreSQL chịu kết nối
   ssl: {
-    rejectUnauthorized: false, // Chấp nhận chứng chỉ SSL tự ký của Docker
-  },
-  // ----------------------------------------
+    rejectUnauthorized: false,
+  }
 });
 
 // Hàm kiểm tra kết nối

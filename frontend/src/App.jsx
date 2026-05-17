@@ -14,8 +14,10 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import AdminHome from "./pages/AdminHome";
 import EmployeeHome from "./pages/EmployeeHome";
-import LeavePage from "./pages/LeavePage";
-import EmployeeDashboard from "./pages/EmployeeDashboard"; // Nếu bạn dùng file này
+
+// Cập nhật import 2 file mới thay cho LeavePage
+import CreateLeave from "./pages/CreateLeave";
+import LeaveHistory from "./pages/LeaveHistory";
 
 // Component bảo vệ Route
 const PrivateRoute = ({ children }) => {
@@ -89,13 +91,25 @@ function App() {
           }
         />
 
-        {/* Trang xin nghỉ phép (Dùng LeavePage hoặc EmployeeDashboard tùy bạn) */}
+        {/* Trang Tạo đơn xin nghỉ phép */}
         <Route
-          path="/employee/leaves"
+          path="/employee/leaves/new"
           element={
             <PrivateRoute>
               <MainLayout>
-                <LeavePage />
+                <CreateLeave />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Trang Xem lịch sử nghỉ phép */}
+        <Route
+          path="/employee/leaves/history"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <LeaveHistory />
               </MainLayout>
             </PrivateRoute>
           }

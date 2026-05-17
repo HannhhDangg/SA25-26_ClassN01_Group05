@@ -1,335 +1,168 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
-import { toast } from "react-toastify"; // Import toast
+import { toast } from "react-toastify";
+import { FaCalendarAlt, FaPlus, FaHistory } from "react-icons/fa";
 
 const LeavePage = () => {
-  const [user] = useState(JSON.parse(localStorage.getItem("user")));
-
-  const [formData, setFormData] = useState({
-    reason: "",
-    start_date: "",
-    end_date: "",
-  });
-  const [totalDays, setTotalDays] = useState(0);
+  const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}"));
+  const location = useLocation();
+  const [tab, setTab] = useState(location.state?.defaultTab || "new");
   const [leaves, setLeaves] = useState([]);
+  const [totalDays, setTotalDays] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({ reason: "", start_date: "", end_date: "" });
 
-  // Hàm tải danh sách đơn
+  useEffect(() => {
+    if (location.state?.defaultTab) {
+      setTab(location.state.defaultTab);
+    }
+  }, [location.state?.defaultTab]);
+
   const fetchLeaves = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const res = await fetch(`/api/leave_ser/${user.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLeaves(data);
-      }
-    } catch (err) {
-      console.error("Lỗi tải danh sách:", err);
-    }
-  }, [user?.id]);
+      const url = user.role === "STAFF" || user.role === "MANAGER"
+        ? `/api/leave_ser/${user.id}`
+        : `/api/users/${user.id}`;
+      const res = await fetch(url);
+      if (res.ok) { const d = await res.json(); setLeaves(Array.isArray(d) ? d : []); }
+    } catch { console.error("Lỗi tải lịch sử"); }
+  }, [user?.id, user?.role]);
 
-  // --- 🔥 LOGIC SOCKET: LẮNG NGHE ADMIN DUYỆT 🔥 ---
+  useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
+
   useEffect(() => {
-    fetchLeaves(); // Tải dữ liệu lần đầu
-
-    // 1. Kết nối Socket
-    const socket = io("/", {
-      transports: ["websocket", "polling"],
-      upgrade: true,
-    });
-
-    // 2. Lắng nghe sự kiện
-    socket.on("leave_status_update", (data) => {
-      // So sánh ID (dùng == cho an toàn)
+    const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
+    socket.on("leave_status_update", data => {
       if (data.target_user_id == user.id) {
-        console.log("🔔 Nhận thông báo:", data);
-
-        // Hiển thị Toast đẹp
-        if (data.status === "APPROVED") {
-          toast.success(data.message);
-        } else if (data.status === "REJECTED") {
-          toast.error(data.message);
-        } else {
-          toast.info(data.message);
-        }
-
-        // Load lại bảng lịch sử ngay lập tức
+        data.status === "APPROVED" ? toast.success(data.message) : data.status === "REJECTED" ? toast.error(data.message) : toast.info(data.message);
         fetchLeaves();
       }
     });
-
-    // 3. Cleanup khi rời trang
     return () => socket.disconnect();
   }, [fetchLeaves, user.id]);
-  // ----------------------------------------------------
 
-  // Tự động tính số ngày
   useEffect(() => {
     if (formData.start_date && formData.end_date) {
-      const start = new Date(formData.start_date);
-      const end = new Date(formData.end_date);
-      const diffTime = end - start;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      setTotalDays(diffDays > 0 ? diffDays : 0);
-    }
+      const diff = Math.ceil((new Date(formData.end_date) - new Date(formData.start_date)) / (1000 * 60 * 60 * 24)) + 1;
+      setTotalDays(diff > 0 ? diff : 0);
+    } else setTotalDays(0);
   }, [formData.start_date, formData.end_date]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    if (totalDays <= 0)
-      return toast.warning("Ngày kết thúc phải sau ngày bắt đầu!");
-
+    if (totalDays <= 0) return toast.warning("Ngày kết thúc phải hợp lệ!");
+    setLoading(true);
     try {
       const res = await fetch("/api/leave_ser", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user.id,
-          reason: formData.reason,
-          start_date: formData.start_date,
-          end_date: formData.end_date,
-          total_days: totalDays,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.id, ...formData, total_days: totalDays })
       });
-
       const data = await res.json();
-
       if (res.ok) {
-        toast.success("Gửi đơn thành công!"); // Thay alert bằng toast
+        toast.success("Gửi đơn thành công! 🚀");
         setFormData({ reason: "", start_date: "", end_date: "" });
         setTotalDays(0);
         fetchLeaves();
-      } else {
-        toast.error(data.message || "Có lỗi xảy ra"); // Thay alert bằng toast
-      }
-    } catch (err) {
-      toast.error("Lỗi kết nối server");
-    }
+        setTab("history");
+      } else toast.error(data.message || "Lỗi gửi đơn");
+    } catch { toast.error("Lỗi kết nối server"); }
+    finally { setLoading(false); }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "APPROVED":
-        return (
-          <span
-            style={{
-              color: "green",
-              background: "#dcfce7",
-              padding: "4px 8px",
-              borderRadius: "10px",
-              fontSize: "12px",
-            }}
-          >
-            ✅ Đã duyệt
-          </span>
-        );
-      case "REJECTED":
-        return (
-          <span
-            style={{
-              color: "red",
-              background: "#fee2e2",
-              padding: "4px 8px",
-              borderRadius: "10px",
-              fontSize: "12px",
-            }}
-          >
-            ❌ Từ chối
-          </span>
-        );
-      default:
-        return (
-          <span
-            style={{
-              color: "#b45309",
-              background: "#fef3c7",
-              padding: "4px 8px",
-              borderRadius: "10px",
-              fontSize: "12px",
-            }}
-          >
-            ⏳ Chờ duyệt
-          </span>
-        );
-    }
+  const statusBadge = s => {
+    if (s === "APPROVED") return <span className="badge badge-green">✅ Đã duyệt</span>;
+    if (s === "REJECTED") return <span className="badge badge-red">❌ Từ chối</span>;
+    return <span className="badge badge-amber">⏳ Chờ duyệt</span>;
   };
 
   return (
-    <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-      <h2 style={{ marginBottom: "20px", color: "var(--primary-color)" }}>
-        Nghỉ phép
-      </h2>
+    <div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
+        <FaCalendarAlt style={{ color: "var(--primary)" }} /> Quản lý Nghỉ phép
+      </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1.5fr",
-          gap: "20px",
-        }}
-      >
-        {/* FORM TẠO ĐƠN */}
-        <div className="card" style={styles.card}>
-          <h3 style={{ marginTop: 0, color: "#2563eb", marginBottom: "15px" }}>
-            Tạo Đơn Mới
-          </h3>
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "15px" }}
-          >
-            <div>
-              <label style={styles.label}>Lý do nghỉ:</label>
-              <input
-                required
-                type="text"
-                placeholder="VD: Nghỉ ốm..."
-                value={formData.reason}
-                onChange={(e) =>
-                  setFormData({ ...formData, reason: e.target.value })
-                }
-                style={styles.input}
-              />
+      <div className="tab-bar">
+        <button className={`tab-item${tab === "new" ? " active" : ""}`} onClick={() => setTab("new")}>
+          <FaPlus size={11} /> Tạo đơn mới
+        </button>
+        <button className={`tab-item${tab === "history" ? " active" : ""}`} onClick={() => setTab("history")}>
+          <FaHistory size={11} /> Lịch sử đơn ({leaves.length})
+        </button>
+      </div>
+
+      {tab === "new" && (
+        <div className="card" style={{ maxWidth: 600 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--primary)", marginBottom: 18, paddingBottom: 14, borderBottom: "1px solid var(--border)" }}>
+            📝 Tạo Đơn Xin Nghỉ Mới
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label">Lý do nghỉ <span style={{ color: "#DC2626" }}>*</span></label>
+              <input className="form-control" required placeholder="VD: Nghỉ ốm, Việc gia đình..." value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} />
             </div>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <div style={{ flex: 1 }}>
-                <label style={styles.label}>Từ ngày:</label>
-                <input
-                  required
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, start_date: e.target.value })
-                  }
-                  style={styles.input}
-                />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="form-group">
+                <label className="form-label">Từ ngày <span style={{ color: "#DC2626" }}>*</span></label>
+                <input className="form-control" required type="date" value={formData.start_date} onChange={e => setFormData({ ...formData, start_date: e.target.value })} />
               </div>
-              <div style={{ flex: 1 }}>
-                <label style={styles.label}>Đến ngày:</label>
-                <input
-                  required
-                  type="date"
-                  value={formData.end_date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, end_date: e.target.value })
-                  }
-                  style={styles.input}
-                />
+              <div className="form-group">
+                <label className="form-label">Đến ngày <span style={{ color: "#DC2626" }}>*</span></label>
+                <input className="form-control" required type="date" value={formData.end_date} min={formData.start_date} onChange={e => setFormData({ ...formData, end_date: e.target.value })} />
               </div>
-            <div
-              style={{
-                background: "#f3f4f6",
-                padding: "10px",
-                borderRadius: "8px",
-                fontSize: "14px",
-              }}
-            >
-              Tổng cộng:{" "}
-              <span style={{ color: totalDays > 3 ? "red" : "#059669", fontWeight: "bold" }}>
-                {totalDays} ngày
-              </span>
-              {totalDays > 3 && (
-                <div style={{ color: "red", marginTop: "5px", fontSize: "12px", fontWeight: "bold" }}>
-                  ⚠️ Tối đa 3 ngày nghỉ liên tiếp!
-                </div>
-              )}
             </div>
-              {totalDays > 3 && (
-                <div style={{ color: "red", marginTop: "5px", fontSize: "12px", fontWeight: "bold" }}>
-                  ⚠️ Tối đa 3 ngày nghỉ liên tiếp!
-                </div>
-              )}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-page)", padding: "12px 16px", borderRadius: "var(--r-md)", marginTop: 4 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>
+                Tổng số ngày nghỉ:{" "}
+                <span style={{ color: totalDays > 0 ? "#EF4444" : "var(--text-light)", fontWeight: 700, fontSize: 18 }}>{totalDays}</span>
+                <span style={{ color: "var(--text-sub)", fontSize: 13 }}> ngày</span>
+              </div>
+              <button type="submit" className="btn btn-primary" disabled={loading || totalDays <= 0}>
+                {loading ? "Đang gửi..." : "🚀 Gửi Đơn Ngay"}
+              </button>
             </div>
-            <button type="submit" style={styles.button}>
-              Gửi Đơn
-            </button>
           </form>
         </div>
+      )}
 
-        {/* DANH SÁCH LỊCH SỬ */}
-        <div className="card" style={styles.card}>
-          <h3 style={{ marginTop: 0, color: "#059669", marginBottom: "15px" }}>
-            🕒 Lịch Sử Đơn
-          </h3>
-          <div style={{ overflowY: "auto", maxHeight: "500px" }}>
-            {leaves.length === 0 ? (
-              <p style={{ color: "#666", textAlign: "center" }}>
-                Chưa có đơn nào.
-              </p>
-            ) : (
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "14px",
-                }}
-              >
-                <thead>
-                  <tr
-                    style={{
-                      background: "#f9fafb",
-                      textAlign: "left",
-                      borderBottom: "2px solid #eee",
-                    }}
-                  >
-                    <th style={{ padding: "10px" }}>Thời gian</th>
-                    <th>Lý do</th>
-                    <th>Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaves.map((leave) => (
-                    <tr
-                      key={leave.id}
-                      style={{ borderBottom: "1px solid #eee" }}
-                    >
-                      <td style={{ padding: "10px" }}>
-                        <div>
-                          {new Date(leave.start_date).toLocaleDateString(
-                            "vi-VN",
-                          )}
-                        </div>
-                        <div style={{ fontSize: "12px", color: "#666" }}>
-                          ({leave.total_days} ngày)
-                        </div>
-                      </td>
-                      <td>{leave.reason}</td>
-                      <td>{getStatusBadge(leave.status)}</td>
+      {tab === "history" && (
+        <div className="table-wrap">
+          {leaves.length === 0
+            ? <div style={{ padding: 40, textAlign: "center", color: "var(--text-light)" }}>Bạn chưa có đơn nghỉ phép nào.</div>
+            : (
+              <div className="table-wrap-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Thời gian</th>
+                      <th>Lý do</th>
+                      <th>Số ngày</th>
+                      <th>Trạng thái</th>
+                      <th>Ngày gửi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                  </thead>
+                  <tbody>
+                    {leaves.map(l => (
+                      <tr key={l.id}>
+                        <td style={{ fontSize: 13 }}>
+                          <div style={{ fontWeight: 500 }}>{new Date(l.start_date).toLocaleDateString("vi-VN")}</div>
+                          <div className="cell-sub">đến {new Date(l.end_date).toLocaleDateString("vi-VN")}</div>
+                        </td>
+                        <td style={{ maxWidth: 240, fontSize: 13 }}>{l.reason}</td>
+                        <td style={{ fontWeight: 600 }}>{l.total_days}</td>
+                        <td>{statusBadge(l.status)}</td>
+                        <td style={{ fontSize: 12, color: "var(--text-sub)" }}>{new Date(l.created_at).toLocaleDateString("vi-VN")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
         </div>
-      </div>
+      )}
     </div>
   );
 };
-
-// CSS styles đơn giản
-const styles = {
-  card: {
-    background: "white",
-    padding: "20px",
-    borderRadius: "12px",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  },
-  input: {
-    width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #ddd",
-    marginTop: "5px",
-  },
-  label: { fontWeight: "bold", fontSize: "14px" },
-  button: {
-    padding: "12px",
-    background: "#2563eb",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    cursor: "pointer",
-    width: "100%",
-  },
-};
-
 export default LeavePage;

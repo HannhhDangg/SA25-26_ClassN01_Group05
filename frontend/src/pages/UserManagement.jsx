@@ -1,289 +1,368 @@
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client"; // Thư viện kết nối Socket phía Client
+import { io } from "socket.io-client";
+import { toast } from "react-toastify";
+import { FaUsers, FaSearch, FaUserPlus, FaEdit, FaTimes, FaTrashAlt, FaCheck } from "react-icons/fa";
+
+const ROLES = ["Tất cả", "SUPERADMIN", "MANAGER", "STAFF"];
 
 const UserManagement = () => {
-  // --- KHAI BÁO CÁC STATE (TRẠNG THÁI) ---
-  const [users, setUsers] = useState([]); // Lưu danh sách nhân viên lấy từ database
-  const [loading, setLoading] = useState(true); // Trạng thái hiển thị chữ "Đang tải..."
-  const [searchTerm, setSearchTerm] = useState(""); // Lưu từ khóa tìm kiếm người dùng nhập
-  const [notify, setNotify] = useState(""); // Lưu nội dung thông báo khi có đơn mới (Toast)
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("Tất cả");
 
-  // --- HÀM TRỢ GIÚP: ĐỊNH DẠNG MÃ NHÂN VIÊN (VÍ DỤ: 5 -> HD05) ---
-  const formatID = (id) => {
-    // String(id).padStart(2, "0") đảm bảo ID luôn có 2 chữ số (VD: 1 thành 01)
-    return `HD${String(id).padStart(2, "0")}`;
-  };
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const token = localStorage.getItem("token");
 
-  // --- HÀM GỌI API LẤY DANH SÁCH NHÂN VIÊN ---
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+
+  const formatID = id => `HD${String(id).padStart(2, "0")}`;
+
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/users"); // Gọi đến Router Backend xử lý SELECT dữ liệu
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data); // Đưa dữ liệu vào State để render ra bảng
-      }
-    } catch (err) {
-      console.error("Lỗi khi fetch users:", err);
-    } finally {
-      setLoading(false); // Dừng hiển thị loading sau khi đã nhận xong dữ liệu
-    }
+      const res = await fetch("/api/auth_ser/users", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setUsers(Array.isArray(data) ? data : []);
+    } catch { toast.error("Không thể tải danh sách!"); }
+    finally { setLoading(false); }
   };
 
-  // --- EFFECT: KHỞI TẠO DỮ LIỆU VÀ THIẾT LẬP KẾT NỐI SOCKET ---
   useEffect(() => {
-    fetchUsers(); // Lấy danh sách nhân viên ngay khi vừa mở trang
-
-    // Thiết lập kết nối Socket thông qua Nginx (Gateway cổng 80)
-    const socket = io("/", {
-      transports: ["websocket", "polling"], // Các giao thức ưu tiên (WebSocket nhanh hơn)
-      upgrade: true,
-    });
-
-    socket.on("connect", () => {
-      console.log("🟢 UserManagement đã kết nối Socket thành công!");
-    });
-
-    // 🔔 LẮNG NGHE SỰ KIỆN: "new_leave_request" (Có đơn nghỉ phép mới được gửi)
-    socket.on("new_leave_request", (data) => {
-      console.log("🔔 Nhận tín hiệu Real-time từ Redis:", data);
-      setNotify(data.message); // Hiển thị nội dung thông báo nổi lên màn hình
-
-      // Sau 5 giây, tự động xóa thông báo khỏi màn hình
-      setTimeout(() => setNotify(""), 5000);
-    });
-
-    // Hàm dọn dẹp (Cleanup): Ngắt kết nối socket khi người dùng rời khỏi Component này
+    fetchUsers();
+    const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
+    socket.on("new_leave_request", d => toast.info("🔔 " + d.message));
     return () => socket.disconnect();
   }, []);
 
-  // --- HÀM XỬ LÝ KHÓA/MỞ TÀI KHOÀN (ADMIN ACTION) ---
-  const handleToggleStatus = async (user) => {
-    // Chặn không cho phép Admin tự khóa chính mình (đảm bảo tính an toàn)
-    if (user.role === "ADMIN") return alert("Không thể khóa tài khoản Admin!");
-
-    // Xác định trạng thái mới dựa trên trạng thái hiện tại
-    const newStatus = user.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
-
-    // Yêu cầu Admin xác nhận thao tác qua cửa sổ Confirm
-    const confirmMsg =
-      user.status === "ACTIVE"
-        ? `Bạn có chắc muốn KHÓA tài khoản ${user.username}?`
-        : `Bạn có chắc muốn KÍCH HOẠT tài khoản ${user.username}?`;
-
-    if (!window.confirm(confirmMsg)) return;
-
+  // ✅ HÀM KÍCH HOẠT / DUYỆT TÀI KHOẢN MỚI THÊM VÀO
+  const handleApprove = async (userId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn duyệt và kích hoạt tài khoản này không?")) return;
     try {
-      // Gửi yêu cầu cập nhật trạng thái lên Server qua phương thức PUT
-      const res = await fetch(`/api/users/${user.id}/status`, {
+      const res = await fetch(`/api/auth_ser/users/${userId}/status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: "ACTIVE" })
       });
-
       if (res.ok) {
-        alert("Cập nhật trạng thái thành công!");
-        fetchUsers(); // Gọi lại hàm lấy dữ liệu để cập nhật bảng ngay lập tức
+        toast.success("Kích hoạt tài khoản thành công! 🎉");
+        fetchUsers(); // Tải lại danh sách sau khi duyệt
       } else {
-        alert("Lỗi khi cập nhật trạng thái!");
+        const data = await res.json();
+        toast.error(data.message || "Lỗi khi kích hoạt tài khoản!");
       }
     } catch (err) {
-      alert("Lỗi kết nối đến Server");
+      toast.error("Lỗi kết nối Server!");
     }
   };
 
-  // --- LOGIC LỌC TÌM KIẾM TẠI CLIENT ---
-  const filteredUsers = users.filter((u) => {
-    const term = searchTerm.toLowerCase(); // Viết thường từ khóa để so sánh không phân biệt hoa thường
-    const formattedID = formatID(u.id).toLowerCase(); // So sánh với cả mã HDxx
+  const openEditModal = (user) => {
+    setEditingUser(user);
+    setShowEditModal(true);
+  };
 
-    return (
-      (u.full_name?.toLowerCase() || "").includes(term) || // Tìm theo tên
-      (u.username?.toLowerCase() || "").includes(term) || // Tìm theo username
-      (u.email?.toLowerCase() || "").includes(term) || // Tìm theo email
-      formattedID.includes(term) // Tìm theo mã NV (HD01, HD02...)
-    );
+  const filtered = users.filter(u => {
+    const term = search.toLowerCase();
+    const matchSearch =
+      (u.full_name?.toLowerCase() || "").includes(term) ||
+      (u.username?.toLowerCase() || "").includes(term) ||
+      (u.email?.toLowerCase() || "").includes(term) ||
+      formatID(u.id).toLowerCase().includes(term);
+    const matchRole = roleFilter === "Tất cả" || u.role === roleFilter;
+    return matchSearch && matchRole;
   });
 
-  return (
-    <div className="card" style={{ position: "relative" }}>
-      {/* 1. HIỂN THỊ THÔNG BÁO NỔI (TOAST NOTIFICATION) */}
-      {notify && (
-        <div
-          style={{
-            position: "fixed",
-            top: "20px",
-            right: "20px",
-            background: "#10b981",
-            color: "white",
-            padding: "15px 25px",
-            borderRadius: "8px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-            fontWeight: "bold",
-            zIndex: 9999,
-            animation: "slideIn 0.5s ease",
-          }}
-        >
-          🔔 {notify}
-        </div>
-      )}
+  const roleBadge = r => {
+    if (r === "SUPERADMIN" || r === "ADMIN") return <span className="badge badge-superadmin">Super Admin</span>;
+    if (r === "MANAGER") return <span className="badge badge-manager">Quản lý</span>;
+    return <span className="badge badge-staff">Nhân viên</span>;
+  };
 
-      {/* 2. THANH TIÊU ĐỀ VÀ Ô TÌM KIẾM */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-        }}
-      >
-        <h2 style={{ color: "var(--primary-color)", margin: 0 }}>
-          Quản Lý Nhân Sự
-        </h2>
-        <input
-          type="text"
-          placeholder="🔍 Tìm ID (HD..), tên, email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)} // Cập nhật State liên tục khi gõ
-          style={{
-            padding: "8px 12px",
-            borderRadius: "6px",
-            border: "1px solid #ddd",
-            width: "280px",
-          }}
-        />
+  return (
+    <div>
+      <div className="flex-between mb-16">
+        <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+          <FaUsers style={{ color: "var(--primary)" }} /> Quản lý Nhân sự
+          <span style={{ fontSize: 13, fontWeight: 400, color: "var(--text-sub)", marginLeft: 4 }}>({users.length} nhân viên)</span>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="search-box">
+            <FaSearch size={14} />
+            <input placeholder="Tìm mã NV, tên, email..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
+            <FaUserPlus size={12} /> Thêm nhân viên
+          </button>
+        </div>
       </div>
 
-      {/* 3. BẢNG DỮ LIỆU NHÂN VIÊN */}
-      {loading ? (
-        <p>Đang tải dữ liệu nhân viên...</p>
-      ) : (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "14px",
-          }}
-        >
-          <thead>
-            <tr
-              style={{
-                background: "#f9fafb",
-                textAlign: "left",
-                borderBottom: "2px solid #ddd",
-              }}
-            >
-              <th style={{ padding: "10px" }}>Mã NV</th>
-              <th style={{ padding: "10px" }}>Nhân viên</th>
-              <th style={{ padding: "10px" }}>Vai trò</th>
-              <th style={{ padding: "10px" }}>Quỹ phép</th>
-              <th style={{ padding: "10px" }}>Trạng thái</th>
-              <th style={{ padding: "10px" }}>Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="6"
-                  style={{ textAlign: "center", padding: "20px" }}
-                >
-                  Không tìm thấy nhân viên nào phù hợp.
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((u) => (
-                <tr key={u.id} style={{ borderBottom: "1px solid #eee" }}>
-                  {/* Cột mã nhân viên định dạng HDxx */}
-                  <td
-                    style={{
-                      padding: "10px",
-                      fontWeight: "bold",
-                      color: "#666",
-                    }}
-                  >
-                    {formatID(u.id)}
-                  </td>
+      <div className="tab-bar">
+        {ROLES.map(r => (
+          <button key={r} className={`tab-item${roleFilter === r ? " active" : ""}`} onClick={() => setRoleFilter(r)}>{r}</button>
+        ))}
+      </div>
 
-                  {/* Cột thông tin chi tiết */}
-                  <td style={{ padding: "10px" }}>
-                    <div style={{ fontWeight: "bold" }}>
-                      {u.full_name || u.username}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#666" }}>
-                      {u.email}
-                    </div>
-                  </td>
-
-                  {/* Cột vai trò (Admin/Staff) */}
-                  <td style={{ padding: "10px" }}>
-                    <span
-                      style={{
-                        color: u.role === "ADMIN" ? "red" : "blue",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {u.role}
-                    </span>
-                  </td>
-
-                  <td style={{ padding: "10px" }}>{u.max_leave_days} ngày</td>
-
-                  {/* Cột trạng thái với màu sắc trực quan */}
-                  <td style={{ padding: "10px" }}>
-                    {u.status === "ACTIVE" ? (
-                      <span
-                        style={{
-                          color: "green",
-                          background: "#dcfce7",
-                          padding: "4px 8px",
-                          borderRadius: "10px",
-                        }}
-                      >
-                        Hoạt động
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          color: "#b45309",
-                          background: "#fef3c7",
-                          padding: "4px 8px",
-                          borderRadius: "10px",
-                        }}
-                      >
-                        Bị khóa
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Cột hành động quản trị */}
-                  <td style={{ padding: "10px" }}>
-                    {u.role !== "ADMIN" && (
-                      <button
-                        onClick={() => handleToggleStatus(u)}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          border: "none",
-                          background:
-                            u.status === "ACTIVE" ? "#fee2e2" : "#dcfce7",
-                          color: u.status === "ACTIVE" ? "#991b1b" : "#166534",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {u.status === "ACTIVE" ? "🔒 Khóa" : "🔓 Kích hoạt"}
-                      </button>
-                    )}
-                  </td>
+      <div className="table-wrap">
+        {loading ? <div style={{ padding: 40, textAlign: "center", color: "var(--text-light)" }}>Đang tải dữ liệu...</div> : (
+          <div className="table-wrap-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mã NV</th>
+                  <th>Nhân viên</th>
+                  <th>Vai trò</th>
+                  <th>Phòng ban</th>
+                  <th>Lương cơ bản</th>
+                  <th>Quỹ phép</th>
+                  <th>Trạng thái</th>
+                  <th>Hành động</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={8} style={{ textAlign: "center", padding: 32, color: "var(--text-light)" }}>Không tìm thấy nhân viên phù hợp.</td></tr>
+                )}
+                {filtered.map(u => (
+                  <tr key={u.id}>
+                    <td><span className="id-chip">{formatID(u.id)}</span></td>
+                    <td>
+                      <div className="cell-user">
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--primary-light)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+                          {(u.full_name || u.username || "?")[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="cell-name">{u.full_name || u.username}</div>
+                          <div className="cell-sub">{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{roleBadge(u.role)}</td>
+                    <td style={{ fontSize: 13, color: "var(--text-sub)" }}>{u.department_name || "Chưa phân bổ"}</td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: 12.5 }}>
+                      {u.base_salary ? Number(u.base_salary).toLocaleString("vi-VN") + " ₫" : <span style={{ color: "var(--text-light)" }}>—</span>}
+                    </td>
+                    <td style={{ fontSize: 13 }}>
+                      <span style={{ fontWeight: 500 }}>{u.max_leave_days || 0}</span>
+                      <span style={{ color: "var(--text-light)" }}> ngày</span>
+                    </td>
+                    <td>
+                      {u.status === "ACTIVE" ? (
+                        <span className="badge badge-green">Hoạt động</span>
+                      ) : u.status === "PENDING_ADMIN" ? (
+                        <span className="badge badge-amber">Chờ duyệt</span>
+                      ) : (
+                        <span className="badge badge-red">Bị khóa / Xóa</span>
+                      )}
+                    </td>
+                    <td>
+                      {!["SUPERADMIN", "ADMIN"].includes(u.role) && (
+                        <div style={{ display: "flex", gap: 5 }}>
+
+                          {/* ✅ NÚT DUYỆT CHỈ XUẤT HIỆN KHI TÀI KHOẢN ĐANG CHỜ DUYỆT */}
+                          {u.status === "PENDING_ADMIN" && (
+                            <button className="btn btn-sm" style={{ background: "#22c55e", color: "#fff", border: "none" }} title="Duyệt tài khoản" onClick={() => handleApprove(u.id)}>
+                              <FaCheck size={10} style={{ marginRight: 4 }} /> Duyệt
+                            </button>
+                          )}
+
+                          <button className="btn btn-sm" style={{ background: "var(--bg-page)", border: "1px solid var(--border)", color: "var(--text)" }} title="Thiết lập" onClick={() => openEditModal(u)}>
+                            <FaEdit size={12} /> Cài đặt
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showEditModal && editingUser && (
+        <EditUserModal user={editingUser} token={token} onClose={() => setShowEditModal(false)} onRefresh={fetchUsers} />
       )}
 
-      {/* Định nghĩa CSS Animation cho hiệu ứng trượt thông báo */}
-      <style>{`@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
+      {showAddModal && (
+        <AddUserModal token={token} onClose={() => setShowAddModal(false)} onRefresh={fetchUsers} />
+      )}
+    </div>
+  );
+};
+
+const EditUserModal = ({ user, token, onClose, onRefresh }) => {
+  const [role, setRole] = useState(user.role || "STAFF");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSaveRole = async (e) => {
+    e.preventDefault();
+    if (role === user.role) return onClose();
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/auth_ser/users/${user.id}/role`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ role })
+      });
+      if (res.ok) {
+        toast.success("Cập nhật vai trò thành công!");
+        onRefresh();
+        onClose();
+      } else {
+        const data = await res.json();
+        toast.error(data.message || "Lỗi khi cập nhật vai trò!");
+      }
+    } catch (err) {
+      toast.error("Lỗi kết nối Server!");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa hoàn toàn tài khoản của [${user.username}] khỏi hệ thống không?`)) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/auth_ser/users/${user.id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success("Đã xóa tài khoản thành công!");
+        onRefresh();
+        onClose();
+      } else {
+        const data = await res.json();
+        toast.error(data.message || "Lỗi khi xóa tài khoản!");
+      }
+    } catch (err) {
+      toast.error("Lỗi kết nối Server!");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+        <div className="modal-header" style={{ display: "flex", justifyContent: "space-between" }}>
+          <span>Cài đặt Tài khoản</span>
+          <FaTimes style={{ cursor: "pointer", color: "var(--text-light)" }} onClick={onClose} />
+        </div>
+
+        <div className="modal-body" style={{ textAlign: "center", paddingBottom: 10 }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text)" }}>{user.full_name || user.username}</div>
+          <div style={{ color: "var(--text-sub)", fontSize: 13, marginBottom: 20 }}>{user.email}</div>
+        </div>
+
+        <form onSubmit={handleSaveRole}>
+          <div className="modal-body" style={{ paddingTop: 0 }}>
+            <div className="form-group">
+              <label className="form-label">Phân quyền vai trò</label>
+              <select className="form-control" value={role} onChange={(e) => setRole(e.target.value)}>
+                <option value="STAFF">Nhân viên (STAFF)</option>
+                <option value="MANAGER">Quản lý (MANAGER)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="modal-actions" style={{ justifyContent: "space-between" }}>
+            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={isSubmitting} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <FaTrashAlt /> Xóa tài khoản
+            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
+              <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                {isSubmitting ? "Đang xử lý..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const AddUserModal = ({ token, onClose, onRefresh }) => {
+  const [formData, setFormData] = useState({ username: "", email: "", password: "", full_name: "", role: "STAFF" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/auth_ser/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify(formData)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Thêm nhân viên thành công!");
+        onRefresh();
+        onClose();
+      } else {
+        toast.error(data.message || "Lỗi khi thêm nhân viên!");
+      }
+    } catch (err) {
+      toast.error("Lỗi kết nối Server!");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450 }}>
+        <div className="modal-header" style={{ display: "flex", justifyContent: "space-between" }}>
+          <span>Thêm Nhân Viên Mới</span>
+          <FaTimes style={{ cursor: "pointer", color: "var(--text-light)" }} onClick={onClose} />
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="form-group">
+              <label className="form-label">Tên đăng nhập *</label>
+              <input className="form-control" name="username" value={formData.username} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email *</label>
+              <input className="form-control" type="email" name="email" value={formData.email} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Mật khẩu *</label>
+              <input className="form-control" type="password" name="password" value={formData.password} onChange={handleChange} required minLength={6} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Họ và Tên</label>
+              <input className="form-control" name="full_name" value={formData.full_name} onChange={handleChange} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Vai trò</label>
+              <select className="form-control" name="role" value={formData.role} onChange={handleChange}>
+                <option value="STAFF">Nhân viên (STAFF)</option>
+                <option value="MANAGER">Quản lý (MANAGER)</option>
+              </select>
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? "Đang xử lý..." : "Thêm mới"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

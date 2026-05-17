@@ -6,10 +6,12 @@ const http = require("http");
 const { Server } = require("socket.io");
 const { createClient } = require("redis");
 const { createAdapter } = require("@socket.io/redis-adapter");
-const mongoose = require("mongoose"); // 🔥 THIẾU DÒNG NÀY
+const mongoose = require("mongoose");
 
 // Import routes
 const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/users"); // Thêm dòng này
+const otpRoute = require("./routes/otp");
 
 const app = express();
 const server = http.createServer(app);
@@ -45,11 +47,16 @@ app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Sử dụng Routes
+// --- SỬ DỤNG ROUTES CHUẨN XÁC ---
 app.use("/api/auth_ser", authRoutes);
 
-// --- 🔥 KẾT NỐI MONGODB (Đã sửa vị trí) ---
-const mongoURI = process.env.MONGO_URI || "mongodb://db-mongo:27017/leave_logs"; // Chú ý: dùng 'db-mongo' theo tên container trong log của bạn
+// ✅ QUAN TRỌNG: Đặt users nằm sau /api/auth_ser để lọt qua Gateway
+app.use("/api/auth_ser/users", userRoutes);
+
+app.use("/api/otp", otpRoute);
+
+// --- KẾT NỐI MONGODB ---
+const mongoURI = process.env.MONGO_URI || "mongodb://db-mongo:27017/leave_logs";
 mongoose
   .connect(mongoURI)
   .then(() => console.log("✅ Đã kết nối MongoDB thành công!"))
@@ -58,7 +65,3 @@ mongoose
 server.listen(port, () => {
   console.log(`🚀 Server đang chạy tại http://localhost:${port}`);
 });
-
-const otpRoute = require("./routes/otp");
-// ... các route cũ
-app.use("/api/otp", otpRoute);

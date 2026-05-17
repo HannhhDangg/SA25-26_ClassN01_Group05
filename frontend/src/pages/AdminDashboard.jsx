@@ -1,367 +1,204 @@
 import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
+import { toast } from "react-toastify";
+import { FaCalendarAlt, FaSearch, FaSync, FaCheck, FaTimes, FaAngleLeft, FaAngleRight } from "react-icons/fa";
+
+const TABS = ["Tất cả", "Chờ duyệt", "Đã duyệt", "Từ chối"];
+const ITEMS_PER_PAGE = 10; // Giới hạn 10 đơn trên 1 trang
 
 const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [notify, setNotify] = useState("");
+  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("Tất cả");
 
-  const formatID = (id) => `HD${String(id).padStart(2, "0")}`;
+  // State quản lý phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const formatID = id => `HD${String(id).padStart(2, "0")}`;
 
   const fetchRequests = async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/leave_ser");
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data);
-        console.log("✅ Đã tải lại danh sách đơn mới."); // <--- LOG KIỂM TRA
-      }
-    } catch (err) {
-      console.error("Lỗi tải dữ liệu:", err);
-    } finally {
-      setLoading(false);
-    }
+      const data = await res.json();
+      setRequests(Array.isArray(data) ? data : []);
+    } catch { toast.error("Không thể tải dữ liệu!"); }
+    finally { setLoading(false); }
   };
 
-  // --- KẾT NỐI SOCKET (SỬA LẠI) ---
   useEffect(() => {
-    console.log(
-      "🔄 Khởi tạo kết nối Socket và tải dữ liệu..------------------------------------.",
-    );
     fetchRequests();
-
-    const socket = io("/", {
-      transports: ["websocket", "polling"], // Ưu tiên Websocket
-      upgrade: true,
-    });
-
-    // 2. Kiểm tra xem có kết nối được không
-    socket.on("connect", () => {
-      console.log("🟢 Socket đã kết nối thành công! ID:", socket.id);
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("🔴 Lỗi kết nối Socket:", err.message);
-    });
-
-    // 3. Lắng nghe sự kiện
-    socket.on("new_leave_request", (data) => {
-      console.log("🔔 NHẬN ĐƯỢC THÔNG BÁO TỪ SERVER:", data); // <--- LOG QUAN TRỌNG
-
-      setNotify(data.message);
-      fetchRequests(); // Tải lại danh sách ngay
-      setTimeout(() => setNotify(""), 5000);
-    });
-
+    const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
+    socket.on("new_leave_request", data => { toast.info("🔔 " + data.message); fetchRequests(); });
     return () => socket.disconnect();
   }, []);
 
-  const handleUpdateStatus = async (id, status, employeeName) => {
-    const actionName = status === "APPROVED" ? "DUYỆT" : "TỪ CHỐI";
-    if (
-      !window.confirm(
-        `Bạn chắc chắn muốn ${actionName} đơn của ${employeeName}?`,
-      )
-    )
-      return;
+  // Reset về trang 1 mỗi khi đổi Tab hoặc gõ Tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, search]);
+
+  const handleStatus = async (id, status, name) => {
+    const label = status === "APPROVED" ? "DUYỆT" : "TỪ CHỐI";
+    if (!window.confirm(`Xác nhận ${label} đơn của ${name}?`)) return;
     try {
-      const res = await fetch(`/api/leave_ser/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
+      const res = await fetch(`/api/leave_ser/${id}/status`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
       if (res.ok) {
-        alert(`Đã ${actionName} thành công!`);
+        toast.success(`Đã ${status === "APPROVED" ? "duyệt" : "từ chối"} thành công!`);
         fetchRequests();
-      } else {
-        alert("Lỗi xử lý.");
       }
-    } catch (err) {
-      alert("Lỗi kết nối server!");
-    }
+      else toast.error("Lỗi xử lý!");
+    } catch { toast.error("Lỗi kết nối!"); }
   };
 
-  const getStatusColor = (status) => {
-    if (status === "APPROVED")
-      return { bg: "#dcfce7", text: "#166534", label: "Đã duyệt" };
-    if (status === "REJECTED")
-      return { bg: "#fee2e2", text: "#991b1b", label: "Từ chối" };
-    return { bg: "#fef3c7", text: "#b45309", label: "Chờ duyệt" };
-  };
-
-  const filteredRequests = requests.filter((req) => {
-    const term = searchTerm.toLowerCase();
-    const userCode = formatID(req.user_id).toLowerCase();
-    return (
-      (req.full_name?.toLowerCase() || "").includes(term) ||
-      (req.username?.toLowerCase() || "").includes(term) ||
-      userCode.includes(term)
-    );
+  // 1. LỌC DỮ LIỆU TRƯỚC
+  const filtered = requests.filter(r => {
+    const term = search.toLowerCase();
+    const matchSearch =
+      (r.full_name?.toLowerCase() || "").includes(term) ||
+      (r.username?.toLowerCase() || "").includes(term) ||
+      formatID(r.user_id).toLowerCase().includes(term);
+    const matchTab =
+      activeTab === "Tất cả" ? true :
+        activeTab === "Chờ duyệt" ? r.status === "PENDING" :
+          activeTab === "Đã duyệt" ? r.status === "APPROVED" :
+            r.status === "REJECTED";
+    return matchSearch && matchTab;
   });
 
+  // 2. PHÂN TRANG DỮ LIỆU ĐÃ LỌC
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem); // Cắt mảng lấy đúng 10 phần tử
+
+  const counts = {
+    "Tất cả": requests.length,
+    "Chờ duyệt": requests.filter(r => r.status === "PENDING").length,
+    "Đã duyệt": requests.filter(r => r.status === "APPROVED").length,
+    "Từ chối": requests.filter(r => r.status === "REJECTED").length,
+  };
+
+  const statusBadge = s => {
+    if (s === "APPROVED") return <span className="badge badge-green">Đã duyệt</span>;
+    if (s === "REJECTED") return <span className="badge badge-red">Từ chối</span>;
+    return <span className="badge badge-amber">Chờ duyệt</span>;
+  };
+
   return (
-    <div className="card" style={{ position: "relative" }}>
-      {/* THÔNG BÁO NỔI */}
-      {notify && (
-        <div
-          style={{
-            position: "fixed",
-            top: "20px",
-            right: "20px",
-            background: "#10b981",
-            color: "white",
-            padding: "15px 25px",
-            borderRadius: "8px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-            fontWeight: "bold",
-            zIndex: 9999,
-            animation: "slideIn 0.5s ease",
-          }}
-        >
-          {notify}
+    <div>
+      <div className="flex-between mb-16">
+        <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+          <FaCalendarAlt style={{ color: "var(--primary)" }} /> Quản lý Đơn Nghỉ Phép
         </div>
-      )}
-
-      {/* THANH TÌM KIẾM & TIÊU ĐỀ */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-          flexWrap: "wrap",
-          gap: "10px",
-        }}
-      >
-        <h2 style={{ color: "var(--primary-color)", margin: 0 }}>
-          Quản Lý Đơn Nghỉ Phép
-        </h2>
-
-        <div style={{ display: "flex", gap: "10px" }}>
-          <input
-            type="text"
-            placeholder="🔍 Tìm Mã NV (HD..), Tên..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: "6px",
-              border: "1px solid #ddd",
-              outline: "none",
-              width: "220px",
-            }}
-          />
-          <button
-            onClick={fetchRequests}
-            style={{
-              cursor: "pointer",
-              padding: "8px 15px",
-              background: "#f3f4f6",
-              border: "1px solid #ddd",
-              borderRadius: "4px",
-              fontWeight: "bold",
-            }}
-          >
-            🔄 Làm mới
-          </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="search-box">
+            <FaSearch />
+            <input placeholder="Tìm mã NV, tên..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <button className="btn btn-sm" onClick={fetchRequests}><FaSync size={12} /> Làm mới</button>
         </div>
       </div>
 
-      {/* BẢNG DỮ LIỆU */}
-      {loading ? (
-        <p>Đang tải dữ liệu...</p>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "14px",
-              minWidth: "800px",
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  background: "#f9fafb",
-                  textAlign: "left",
-                  borderBottom: "2px solid #e5e7eb",
-                }}
-              >
-                <th style={{ padding: "12px" }}>Nhân viên</th>
-                <th style={{ padding: "12px" }}>Lý do & Thời gian</th>
-                <th style={{ padding: "12px" }}>Tổng ngày</th>
-                <th style={{ padding: "12px" }}>Trạng thái</th>
-                <th style={{ padding: "12px" }}>Thời gian duyệt</th>
-                <th style={{ padding: "12px" }}>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRequests.length === 0 && (
+      <div className="tab-bar">
+        {TABS.map(tab => (
+          <button key={tab} className={`tab-item${activeTab === tab ? " active" : ""}`} onClick={() => setActiveTab(tab)}>
+            {tab} ({counts[tab]})
+          </button>
+        ))}
+      </div>
+
+      <div className="table-wrap">
+        {loading ? <div style={{ padding: 40, textAlign: "center", color: "var(--text-light)" }}>Đang tải dữ liệu...</div> : (
+          <div className="table-wrap-scroll">
+            <table>
+              <thead>
                 <tr>
-                  <td
-                    colSpan="6"
-                    style={{
-                      textAlign: "center",
-                      padding: "20px",
-                      color: "#666",
-                    }}
-                  >
-                    {searchTerm
-                      ? "Không tìm thấy kết quả nào."
-                      : "Hiện tại chưa có đơn nghỉ phép nào."}
-                  </td>
+                  <th>Nhân viên</th>
+                  <th>Lý do &amp; Thời gian</th>
+                  <th>Số ngày</th>
+                  <th>Trạng thái</th>
+                  <th>Thời gian duyệt</th>
+                  <th>Hành động</th>
                 </tr>
-              )}
-              {filteredRequests.map((req) => {
-                const statusStyle = getStatusColor(req.status);
-                return (
-                  <tr
-                    key={req.id}
-                    style={{ borderBottom: "1px solid #f3f4f6" }}
-                  >
-                    <td style={{ padding: "12px" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                        }}
-                      >
-                        <img
-                          src={
-                            req.avatar_url
-                              ? req.avatar_url
-                              : "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                          }
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src =
-                              "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-                          }}
-                          style={{
-                            width: "30px",
-                            height: "30px",
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                            border: "1px solid #ddd",
-                          }}
-                        />
+              </thead>
+              <tbody>
+                {currentItems.length === 0 && (
+                  <tr><td colSpan={6} style={{ textAlign: "center", padding: 32, color: "var(--text-light)" }}>
+                    {search ? "Không tìm thấy kết quả." : "Không có đơn nào."}
+                  </td></tr>
+                )}
+                {currentItems.map(req => (
+                  <tr key={req.id}>
+                    <td>
+                      <div className="cell-user">
+                        <img src={req.avatar_url || "https://cdn-icons-png.flaticon.com/512/149/149071.png"} onError={e => { e.target.src = "https://cdn-icons-png.flaticon.com/512/149/149071.png" }} style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }} alt="" />
                         <div>
-                          <div style={{ fontWeight: "500" }}>
-                            {req.full_name || req.username}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "11px",
-                              color: "#888",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {formatID(req.user_id)}
-                          </div>
+                          <div className="cell-name">{req.full_name || req.username}</div>
+                          <div className="id-chip">{formatID(req.user_id)}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: "12px" }}>
-                      <div style={{ fontWeight: "500" }}>{req.reason}</div>
-                      <div style={{ fontSize: "12px", color: "#6b7280" }}>
-                        {new Date(req.start_date).toLocaleDateString("vi-VN")} -{" "}
-                        {new Date(req.end_date).toLocaleDateString("vi-VN")}
+                    <td>
+                      <div style={{ fontWeight: 500, fontSize: 13 }}>{req.reason}</div>
+                      <div className="cell-sub">
+                        {new Date(req.start_date).toLocaleDateString("vi-VN")} – {new Date(req.end_date).toLocaleDateString("vi-VN")}
                       </div>
                     </td>
-                    <td style={{ padding: "12px", fontWeight: "bold" }}>
-                      {req.total_days}
+                    <td style={{ fontWeight: 600, color: "var(--text)" }}>{req.total_days}</td>
+                    <td>{statusBadge(req.status)}</td>
+                    <td style={{ fontSize: 12.5, color: "var(--text-sub)" }}>
+                      {req.approved_at ? new Date(req.approved_at).toLocaleString("vi-VN") : <span style={{ color: "var(--text-light)" }}>—</span>}
                     </td>
-                    <td style={{ padding: "12px" }}>
-                      <span
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: "20px",
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          backgroundColor: statusStyle.bg,
-                          color: statusStyle.text,
-                        }}
-                      >
-                        {statusStyle.label}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px",
-                        fontSize: "13px",
-                        color: "#555",
-                      }}
-                    >
-                      {req.approved_at ? (
-                        new Date(req.approved_at).toLocaleString("vi-VN")
-                      ) : (
-                        <span style={{ color: "#ccc" }}>-</span>
-                      )}
-                    </td>
-                    <td style={{ padding: "12px" }}>
-                      {req.status === "PENDING" && (
-                        <div style={{ display: "flex", gap: "5px" }}>
-                          <button
-                            onClick={() =>
-                              handleUpdateStatus(
-                                req.id,
-                                "APPROVED",
-                                req.full_name,
-                              )
-                            }
-                            style={{
-                              border: "none",
-                              background: "#dcfce7",
-                              color: "green",
-                              cursor: "pointer",
-                              padding: "5px 10px",
-                              borderRadius: "4px",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleUpdateStatus(
-                                req.id,
-                                "REJECTED",
-                                req.full_name,
-                              )
-                            }
-                            style={{
-                              border: "none",
-                              background: "#fee2e2",
-                              color: "red",
-                              cursor: "pointer",
-                              padding: "5px 10px",
-                              borderRadius: "4px",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            ✕
-                          </button>
+                    <td>
+                      {req.status === "PENDING" ? (
+                        <div style={{ display: "flex", gap: 5 }}>
+                          <button className="btn btn-success btn-sm" onClick={() => handleStatus(req.id, "APPROVED", req.full_name)}><FaCheck size={11} /></button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleStatus(req.id, "REJECTED", req.full_name)}><FaTimes size={11} /></button>
                         </div>
-                      )}
-                      {req.status !== "PENDING" && (
-                        <span style={{ color: "#9ca3af", fontSize: "12px" }}>
-                          Đã xử lý
-                        </span>
-                      )}
+                      ) : <span style={{ fontSize: 12, color: "var(--text-light)" }}>Đã xử lý</span>}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── THÀNH PHẦN THANH PHÂN TRANG (PAGINATION UI) ── */}
+      {filtered.length > ITEMS_PER_PAGE && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, padding: "0 4px" }}>
+          <div style={{ fontSize: 13, color: "var(--text-sub)" }}>
+            Hiển thị <b>{indexOfFirstItem + 1}</b> - <b>{Math.min(indexOfLastItem, filtered.length)}</b> trong tổng số <b>{filtered.length}</b> đơn
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="btn btn-sm"
+              style={{ padding: "6px 10px", display: "flex", alignItems: "center", background: currentPage === 1 ? "var(--bg-page)" : "#fff", cursor: currentPage === 1 ? "not-allowed" : "pointer", border: "1px solid var(--border)" }}
+            >
+              <FaAngleLeft size={14} /> Trước
+            </button>
+
+            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", padding: "0 8px" }}>
+              Trang {currentPage} / {totalPages}
+            </span>
+
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="btn btn-sm"
+              style={{ padding: "6px 10px", display: "flex", alignItems: "center", background: currentPage === totalPages ? "var(--bg-page)" : "#fff", cursor: currentPage === totalPages ? "not-allowed" : "pointer", border: "1px solid var(--border)" }}
+            >
+              Sau <FaAngleRight size={14} />
+            </button>
+          </div>
         </div>
       )}
-      <style>{`@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
     </div>
   );
 };
-
 export default AdminDashboard;
