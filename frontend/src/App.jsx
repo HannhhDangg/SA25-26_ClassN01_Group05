@@ -1,25 +1,20 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
-// --- 1. IMPORT TOASTIFY ---
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// --------------------------
 
 import MainLayout from "./components/Mainlayout";
 import Login from "./pages/Login";
 
-// Import các trang
 import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import AdminHome from "./pages/AdminHome";
 import EmployeeHome from "./pages/EmployeeHome";
 
-// Cập nhật import 2 file mới thay cho LeavePage
 import CreateLeave from "./pages/CreateLeave";
 import LeaveHistory from "./pages/LeaveHistory";
 
-// Component bảo vệ Route
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
@@ -28,7 +23,6 @@ const PrivateRoute = ({ children }) => {
 function App() {
   return (
     <BrowserRouter>
-      {/* --- 2. CẤU HÌNH KHUNG THÔNG BÁO --- */}
       <ToastContainer
         position="top-right"
         autoClose={4000}
@@ -41,7 +35,6 @@ function App() {
         pauseOnHover
         theme="colored"
       />
-      {/* ----------------------------------- */}
 
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
@@ -69,13 +62,24 @@ function App() {
           }
         />
 
-        {/* 🔥 ĐÃ THÊM: NÚT TẠO ĐƠN NGHỈ PHÉP CHO MANAGER SẼ CHẠY VÀO ĐÂY */}
         <Route
           path="/admin/leaves/new"
           element={
             <PrivateRoute>
               <MainLayout>
                 <CreateLeave />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* 🔥 ĐÃ THÊM: ROUTE LỊCH SỬ ĐƠN CỦA MANAGER ĐỂ HẾT BỊ TRẮNG TRANG */}
+        <Route
+          path="/admin/leaves/history"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <LeaveHistory />
               </MainLayout>
             </PrivateRoute>
           }
@@ -104,7 +108,6 @@ function App() {
           }
         />
 
-        {/* Trang Tạo đơn xin nghỉ phép của STAFF */}
         <Route
           path="/employee/leaves/new"
           element={
@@ -116,7 +119,6 @@ function App() {
           }
         />
 
-        {/* Trang Xem lịch sử nghỉ phép */}
         <Route
           path="/employee/leaves/history"
           element={

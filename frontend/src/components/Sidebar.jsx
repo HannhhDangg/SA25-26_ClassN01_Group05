@@ -2,14 +2,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaBuilding, FaThLarge, FaClipboardCheck, FaCalendarAlt,
   FaCalendarCheck, FaCoins, FaUsers, FaBell, FaCog,
-  FaSignOutAlt, FaPlusCircle,
+  FaSignOutAlt, FaPlusCircle, FaHistory
 } from "react-icons/fa";
 
-// ── Chữ viết tắt tên ────────────────────────────────────────
 const getInitials = (name = "") =>
   name.split(" ").slice(-2).map((w) => w[0]).join("").toUpperCase();
 
-// ── Dòng menu đơn lẻ ────────────────────────────────────────
 const MenuItem = ({ icon: Icon, label, badge, active, onClick }) => (
   <button className={`menu-item${active ? " active" : ""}`} onClick={onClick}>
     <Icon />
@@ -18,7 +16,6 @@ const MenuItem = ({ icon: Icon, label, badge, active, onClick }) => (
   </button>
 );
 
-// ════════════════════════════════════════════════════════════
 const Sidebar = ({ pendingLeaves = 0 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,12 +31,17 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
     STAFF: "Nhân viên",
   }[role] || role;
 
-  // Kiểm tra active: trang gốc khớp chính xác, trang con dùng startsWith
+  // 🔥 ĐÃ FIX LỖI: SÁNG ĐÈN CHUẨN XÁC, KHÔNG BỊ SÁNG NHẦM NÚT CHA
   const isActive = (path) => {
-    const exactRoots = ["/admin", "/employee"];
-    return exactRoots.includes(path)
-      ? location.pathname === path
-      : location.pathname.startsWith(path);
+    // Với các trang gốc hoặc trang cha (có trang con lồng bên trong), ta phải bắt buộc khớp chính xác 100%
+    const exactPaths = ["/admin", "/employee", "/admin/leaves", "/employee/leaves"];
+
+    if (exactPaths.includes(path)) {
+      return location.pathname === path;
+    }
+
+    // Với các trang khác, vẫn dùng logic bắt đầu bằng để hỗ trợ các ID động (vd: /admin/users/123)
+    return location.pathname.startsWith(path);
   };
 
   const handleLogout = () => {
@@ -52,7 +54,6 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
 
   return (
     <div className="sidebar">
-      {/* ── Logo ─────────────────────────────────────────── */}
       <div className="logo-area">
         <div className="logo-icon"><FaBuilding size={16} /></div>
         <div>
@@ -61,7 +62,6 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
         </div>
       </div>
 
-      {/* ── Menu theo role ────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
 
         {/* ════ 1. SUPERADMIN / ADMIN (Giám đốc) ════ */}
@@ -72,8 +72,6 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
 
             <div className="menu-label">Nghiệp vụ</div>
             <MenuItem icon={FaClipboardCheck} label="Chấm công" active={isActive("/admin/attendance")} onClick={() => navigate("/admin/attendance")} />
-
-            {/* SuperAdmin KHÔNG có tạo đơn nghỉ phép, chỉ dùng Quản lý để duyệt */}
             <MenuItem icon={FaCalendarAlt} label="Quản lý nghỉ phép" active={isActive("/admin/leaves")} onClick={() => navigate("/admin/leaves")} badge={pendingLeaves} />
             <MenuItem icon={FaCalendarCheck} label="Lịch & Ca làm" active={isActive("/admin/schedule")} onClick={() => navigate("/admin/schedule")} />
             <MenuItem icon={FaCoins} label="Tính lương" active={isActive("/admin/salary")} onClick={() => navigate("/admin/salary")} />
@@ -89,18 +87,16 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
         {role === "MANAGER" && (
           <>
             <div className="menu-label">Tổng quan</div>
-            {/* Đã đồng bộ URL về /admin */}
             <MenuItem icon={FaThLarge} label="Trang chủ" active={isActive("/admin")} onClick={() => navigate("/admin")} />
 
             <div className="menu-label">Nghiệp vụ</div>
             <MenuItem icon={FaClipboardCheck} label="Chấm công" active={isActive("/admin/attendance")} onClick={() => navigate("/admin/attendance")} />
 
             <MenuItem icon={FaPlusCircle} label="Tạo đơn nghỉ phép" active={isActive("/admin/leaves/new")} onClick={() => navigate("/admin/leaves/new")} />
+            <MenuItem icon={FaHistory} label="Lịch sử nghỉ phép" active={isActive("/admin/leaves/history")} onClick={() => navigate("/admin/leaves/history")} />
             <MenuItem icon={FaCalendarAlt} label="Duyệt nghỉ phép" active={isActive("/admin/leaves")} onClick={() => navigate("/admin/leaves")} badge={pendingLeaves} />
 
             <MenuItem icon={FaCalendarCheck} label="Lịch & Ca làm" active={isActive("/admin/schedule")} onClick={() => navigate("/admin/schedule")} />
-
-            {/* Đây là nút Quản lý nhân sự của Manager, chung URL với Superadmin */}
             <MenuItem icon={FaUsers} label="Nhân sự nhóm" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} />
           </>
         )}
@@ -111,17 +107,14 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
             <div className="menu-label">Cá nhân</div>
             <MenuItem icon={FaThLarge} label="Trang chủ" active={isActive("/employee")} onClick={() => navigate("/employee")} />
             <MenuItem icon={FaClipboardCheck} label="Chấm công" active={isActive("/employee/attendance")} onClick={() => navigate("/employee/attendance")} />
-
             <MenuItem icon={FaPlusCircle} label="Tạo đơn nghỉ phép" active={isActive("/employee/leaves/new")} onClick={() => navigate("/employee/leaves/new")} />
-            <MenuItem icon={FaCalendarAlt} label="Lịch sử nghỉ phép" active={isActive("/employee/leaves/history")} onClick={() => navigate("/employee/leaves/history")} />
-
+            <MenuItem icon={FaHistory} label="Lịch sử nghỉ phép" active={isActive("/employee/leaves/history")} onClick={() => navigate("/employee/leaves/history")} />
             <MenuItem icon={FaCalendarCheck} label="Lịch làm việc" active={isActive("/employee/schedule")} onClick={() => navigate("/employee/schedule")} />
             <MenuItem icon={FaCoins} label="Xem lương" active={isActive("/employee/salary")} onClick={() => navigate("/employee/salary")} />
           </>
         )}
       </div>
 
-      {/* ── Footer: Tên User + Đăng xuất ─────────────────────────── */}
       <div className="sidebar-footer">
         <div className="sidebar-user">
           {avatar_url ? (
@@ -131,8 +124,7 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
             />
           ) : (
             <div style={{
-              width: 30, height: 30, borderRadius: "50%",
-              background: "var(--primary)",
+              width: 30, height: 30, borderRadius: "50%", background: "var(--primary)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 11, fontWeight: 600, color: "#fff", flexShrink: 0,
             }}>

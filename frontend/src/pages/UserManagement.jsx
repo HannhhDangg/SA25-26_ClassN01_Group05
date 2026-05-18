@@ -1,216 +1,495 @@
-import { useState, useEffect, useCallback } from "react";
-import { FaHistory, FaCheck, FaTimes } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { io } from "socket.io-client";
+import { toast } from "react-toastify";
+import { FaUsers, FaSearch, FaUserPlus, FaEdit, FaTimes, FaTrashAlt, FaCheck } from "react-icons/fa";
 
-const ManagerLeaveHistory = () => {
-  const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}"));
-  const [leaves, setLeaves] = useState([]);
+const ROLES = ["Tất cả", "SUPERADMIN", "MANAGER", "STAFF"];
 
-  // ── State Phân trang & Bộ lọc ──────────────────────────────
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortOrder, setSortOrder] = useState("desc"); // desc: mới nhất -> cũ nhất, asc: cũ nhất -> mới nhất
-  const itemsPerPage = 10;
+const UserManagement = () => {
+  const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("Tất cả");
 
-  // Lấy toàn bộ danh sách đơn nghỉ phép của phòng ban gửi tới Manager
-  const fetchManagerLeaves = useCallback(async () => {
-    if (!user?.id) return;
+  const token = localStorage.getItem("token");
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+
+  const formatID = id => `HD${String(id).padStart(2, "0")}`;
+
+  const fetchData = async () => {
+    setLoading(true);
+    setIsRateLimited(false);
     try {
-      // Điểm tiếp nhận dữ liệu danh sách đơn cần xử lý của Trưởng phòng
-      const url = "/api/leave_ser";
-      const token = localStorage.getItem("token");
-      const res = await fetch(url, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const d = await res.json();
-        setLeaves(Array.isArray(d) ? d : []);
+      const [resUsers, resDepts] = await Promise.all([
+        fetch("/api/auth_ser/users", { headers: { "Authorization": `Bearer ${token}` } }),
+        fetch("/api/auth_ser/departments", { headers: { "Authorization": `Bearer ${token}` } })
+      ]);
+
+      if (resUsers.status === 429 || resDepts.status === 429) {
+        setIsRateLimited(true);
+        setLoading(false);
+        return;
       }
-    } catch {
-      console.error("Lỗi tải danh sách quản lý nghỉ phép");
-    }
-  }, [user?.id]);
 
-  useEffect(() => {
-    fetchManagerLeaves();
-  }, [fetchManagerLeaves]);
-
-  // Xử lý cập nhật trạng thái đơn (Duyệt / Từ chối)
-  const handleUpdateStatus = async (id, status) => {
-    const actionText = status === "APPROVED" ? "DUYỆT" : "TỪ CHỐI";
-    if (!window.confirm(`Bạn có chắc chắn muốn ${actionText} đơn nghỉ phép này không?`)) return;
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/leave_ser/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-      if (res.ok) {
-        fetchManagerLeaves(); // Tải lại danh sách để đồng bộ số liệu và trạng thái mới
+      if (!resUsers.ok || !resDepts.ok) {
+        toast.error("Lỗi khi tải dữ liệu từ máy chủ.");
+        setLoading(false);
+        return;
       }
+
+      const dataUsers = await resUsers.json();
+      const dataDepts = await resDepts.json();
+
+      setUsers(Array.isArray(dataUsers) ? dataUsers : []);
+      setDepartments(Array.isArray(dataDepts) ? dataDepts : []);
     } catch {
-      console.error("Lỗi cập nhật trạng thái đơn");
+      toast.error("Không thể kết nối đến máy chủ!");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ════ LOGIC BỘ LỌC SẮP XẾP (Theo thời gian gửi đơn created_at) ════
-  const sortedLeaves = [...leaves].sort((a, b) => {
-    const dateA = new Date(a.created_at || a.start_date);
-    const dateB = new Date(b.created_at || b.start_date);
-    return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+  useEffect(() => {
+    fetchData();
+    const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
+    socket.on("new_leave_request", d => toast.info("🔔 " + d.message));
+    return () => socket.disconnect();
+  }, []);
+
+  const handleApprove = async (userId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn duyệt và kích hoạt tài khoản này không?")) return;
+    try {
+      const res = await fetch(`/api/auth_ser/users/${userId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ status: "ACTIVE" })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Kích hoạt tài khoản thành công! 🎉");
+        fetchData();
+      } else {
+        toast.error(data.message || "Lỗi khi kích hoạt tài khoản!");
+      }
+    } catch { toast.error("Lỗi kết nối Server!"); }
+  };
+
+  const openEditModal = (user) => {
+    setEditingUser(user);
+    setShowEditModal(true);
+  };
+
+  const filtered = users.filter(u => {
+    const term = search.toLowerCase();
+    const matchSearch =
+      (u.full_name?.toLowerCase() || "").includes(term) ||
+      (u.username?.toLowerCase() || "").includes(term) ||
+      (u.email?.toLowerCase() || "").includes(term) ||
+      formatID(u.id).toLowerCase().includes(term);
+
+    const matchRole = roleFilter === "Tất cả" || u.role === roleFilter;
+
+    let matchPermission = false;
+
+    if (currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN") {
+      matchPermission = true;
+    } else if (currentUser.role === "MANAGER") {
+      if (u.role !== "SUPERADMIN" && u.role !== "ADMIN") {
+        if (String(u.id) === String(currentUser.id)) {
+          matchPermission = true;
+        } else if (u.department_id && String(u.department_id) === String(currentUser.department_id)) {
+          matchPermission = true;
+        }
+      }
+    } else {
+      if (String(u.id) === String(currentUser.id)) {
+        matchPermission = true;
+      }
+    }
+
+    return matchSearch && matchRole && matchPermission;
   });
 
-  // ════ LOGIC PHÂN TRANG (10 ĐƠN / TRANG) ════
-  const totalPages = Math.ceil(sortedLeaves.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentLeaves = sortedLeaves.slice(indexOfFirstItem, indexOfLastItem);
-
-  const statusBadge = s => {
-    if (s === "APPROVED") return <span style={{ padding: "6px 12px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontSize: 13, fontWeight: 600 }}>✅ Đã duyệt</span>;
-    if (s === "REJECTED") return <span style={{ padding: "6px 12px", borderRadius: 20, background: "#fee2e2", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>❌ Từ chối</span>;
-    return <span style={{ padding: "6px 12px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontSize: 13, fontWeight: 600 }}>⏳ Chờ duyệt</span>;
+  const roleBadge = r => {
+    if (r === "SUPERADMIN" || r === "ADMIN") return <span className="badge badge-superadmin">Super Admin</span>;
+    if (r === "MANAGER") return <span className="badge badge-manager">Quản lý</span>;
+    return <span className="badge badge-staff">Nhân viên</span>;
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: 1200, margin: "0 auto" }}>
-
-      {/* ── Tiêu đề & Bộ lọc Sắp xếp ────────────────────────────────── */}
-      <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text)", marginBottom: 30, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <FaHistory style={{ color: "var(--primary)" }} /> Lịch Sử & Duyệt Nghỉ Phép
+    <div>
+      <div className="flex-between mb-16">
+        <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+          <FaUsers style={{ color: "var(--primary)" }} /> {currentUser.role === "MANAGER" ? "Nhân sự nhóm" : "Quản lý Nhân sự"}
+          <span style={{ fontSize: 13, fontWeight: 400, color: "var(--text-sub)", marginLeft: 4 }}>({filtered.length} nhân sự)</span>
         </div>
-
-        {/* Thanh điều hướng bộ lọc thời gian */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 15, fontWeight: 500 }}>
-          <span style={{ color: "#64748B" }}>Bộ lọc:</span>
-          <select
-            value={sortOrder}
-            onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
-            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #CBD5E1", background: "#fff", cursor: "pointer", fontWeight: 600, color: "#1E293B", outline: "none" }}
-          >
-            <option value="desc">🆕 Mới nhất đến cũ nhất</option>
-            <option value="asc">⏳ Cũ nhất đến mới nhất</option>
-          </select>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="search-box">
+            <FaSearch size={14} />
+            <input placeholder="Tìm mã NV, tên, email..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          {/* 🔥 Cả SUPERADMIN và MANAGER đều được thấy nút Thêm nhân sự */}
+          {(currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN" || currentUser.role === "MANAGER") && (
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
+              <FaUserPlus size={12} /> Thêm nhân sự
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── Bảng Dữ Liệu ─────────────────────────────────────────── */}
-      <div style={{ background: "white", borderRadius: 16, padding: "30px", boxShadow: "0 10px 30px rgba(0,0,0,0.05)" }}>
-        {currentLeaves.length === 0
-          ? <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--text-light)", fontSize: 16 }}>Không có đơn xin nghỉ phép nào cần xử lý.</div>
-          : (
-            <>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                  <thead>
-                    <tr style={{ background: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
-                      <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Nhân viên</th>
-                      <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Thời gian nghỉ</th>
-                      <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Lý do</th>
-                      <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569", textAlign: "center" }}>Số ngày</th>
-                      <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Trạng thái</th>
-                      <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Ngày gửi</th>
-                      <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569", textAlign: "center" }}>Tác vụ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentLeaves.map(l => (
-                      <tr key={l.id} style={{ borderBottom: "1px solid #F1F5F9", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+      <div className="tab-bar">
+        {ROLES.filter(r => {
+          if (currentUser.role === "MANAGER" && (r === "SUPERADMIN" || r === "ADMIN")) return false;
+          return true;
+        }).map(r => (
+          <button key={r} className={`tab-item${roleFilter === r ? " active" : ""}`} onClick={() => setRoleFilter(r)}>{r}</button>
+        ))}
+      </div>
 
-                        {/* Hiển thị thông tin nhân viên gửi đơn */}
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ fontWeight: 600, color: "#1E293B", fontSize: 15 }}>{l.full_name || l.username || `ID: ${l.user_id}`}</div>
-                        </td>
-
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ fontWeight: 600, color: "#1E293B", fontSize: 15 }}>{new Date(l.start_date).toLocaleDateString("vi-VN")}</div>
-                          <div style={{ color: "#64748B", fontSize: 13, marginTop: 4 }}>đến {new Date(l.end_date).toLocaleDateString("vi-VN")}</div>
-                        </td>
-                        <td style={{ padding: "16px 20px", maxWidth: 250, color: "#334155", fontSize: 15, lineHeight: 1.5 }}>{l.reason}</td>
-                        <td style={{ padding: "16px 20px", fontWeight: 700, color: "#0F172A", textAlign: "center", fontSize: 16 }}>{l.total_days}</td>
-                        <td style={{ padding: "16px 20px" }}>{statusBadge(l.status)}</td>
-                        <td style={{ padding: "16px 20px", fontSize: 14, color: "#64748B" }}>{new Date(l.created_at).toLocaleDateString("vi-VN")}</td>
-
-                        {/* Cột xử lý chức năng Duyệt/Từ chối của Trưởng phòng */}
-                        <td style={{ padding: "16px 20px", textAlign: "center" }}>
-                          {l.status === "PENDING" ? (
-                            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                              <button
-                                onClick={() => handleUpdateStatus(l.id, "APPROVED")}
-                                style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: "#10B981", color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: 13, transition: "opacity 0.2s" }}
-                                onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-                                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-                              >
-                                <FaCheck size={11} /> Duyệt
+      <div className="table-wrap">
+        {loading ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--text-light)" }}>Đang tải dữ liệu...</div>
+        ) : isRateLimited ? (
+          <div style={{ padding: 60, textAlign: "center", color: "#EF4444", background: "#FEF2F2", borderRadius: 12 }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+            <h3 style={{ margin: "0 0 8px 0" }}>Hệ thống đang tạm khóa</h3>
+            <p style={{ margin: 0, fontSize: 14 }}>Bạn đang thao tác quá nhanh. Vui lòng đợi khoảng 1 phút rồi ấn F5 để tải lại trang.</p>
+          </div>
+        ) : (
+          <div className="table-wrap-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mã NV</th>
+                  <th>Nhân sự</th>
+                  <th>Vai trò</th>
+                  <th>Phòng ban</th>
+                  <th>Lương cơ bản</th>
+                  <th>Quỹ phép</th>
+                  <th>Trạng thái</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(u => (
+                  <tr key={u.id}>
+                    <td><span className="id-chip">{formatID(u.id)}</span></td>
+                    <td>
+                      <div className="cell-user">
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--primary-light)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+                          {(u.full_name || u.username || "?")[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="cell-name">{u.full_name || u.username}</div>
+                          <div className="cell-sub">{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{roleBadge(u.role)}</td>
+                    <td style={{ fontSize: 13, color: "var(--text-sub)", fontWeight: u.department_name ? "500" : "400" }}>
+                      {u.department_name || "Chưa phân bổ"}
+                    </td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: 12.5 }}>
+                      {u.base_salary ? Number(u.base_salary).toLocaleString("vi-VN") + " ₫" : "0 ₫"}
+                    </td>
+                    <td style={{ fontSize: 13 }}>
+                      <span style={{ fontWeight: 500 }}>{u.max_leave_days || 12}</span>
+                      <span style={{ color: "var(--text-light)" }}> ngày</span>
+                    </td>
+                    <td>
+                      {u.status === "ACTIVE" ? (
+                        <span className="badge badge-green">Hoạt động</span>
+                      ) : u.status === "PENDING_ADMIN" ? (
+                        <span className="badge badge-amber">Chờ duyệt</span>
+                      ) : (
+                        <span className="badge badge-red">Bị khóa / Xóa</span>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {String(u.id) !== String(currentUser.id) && (
+                          <>
+                            {u.status === "PENDING_ADMIN" && currentUser.role === "MANAGER" && (
+                              <button className="btn btn-sm" style={{ background: "#22c55e", color: "#fff", border: "none" }} onClick={() => handleApprove(u.id)}>
+                                <FaCheck size={10} style={{ marginRight: 4 }} /> Duyệt
                               </button>
-                              <button
-                                onClick={() => handleUpdateStatus(l.id, "REJECTED")}
-                                style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: "#EF4444", color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: 13, transition: "opacity 0.2s" }}
-                                onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-                                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-                              >
-                                <FaTimes size={11} /> Từ chối
+                            )}
+                            {currentUser.role === "SUPERADMIN" && (
+                              <button className="btn btn-sm" style={{ background: "var(--bg-page)", border: "1px solid var(--border)", color: "var(--text)" }} onClick={() => openEditModal(u)}>
+                                <FaEdit size={12} /> Cài đặt
                               </button>
-                            </div>
-                          ) : (
-                            <span style={{ color: "#94A3B8", fontSize: 13, fontStyle: "italic" }}>Hoàn thành</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: "center", padding: 20, color: "var(--text-light)" }}>Không có dữ liệu nhân sự phù hợp.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showEditModal && editingUser && (
+        <EditUserModal user={editingUser} departments={departments} token={token} onClose={() => setShowEditModal(false)} onRefresh={fetchData} />
+      )}
+
+      {showAddModal && (
+        <AddUserModal departments={departments} token={token} currentUser={currentUser} onClose={() => setShowAddModal(false)} onRefresh={fetchData} />
+      )}
+    </div>
+  );
+};
+
+// ════ MODAL SỬA CHI TIẾT NHÂN SỰ ════
+const EditUserModal = ({ user, departments, token, onClose, onRefresh }) => {
+  const [role, setRole] = useState(user.role || "STAFF");
+  const [salary, setSalary] = useState(user.base_salary || 0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const currentDept = user.department_name || departments.find(d => String(d.id) === String(user.department_id))?.name || "Chưa phân bổ";
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/auth_ser/users/${user.id}/hr-details`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ role, base_salary: salary })
+      });
+      if (res.ok) {
+        toast.success("Cập nhật hồ sơ nhân sự thành công!");
+        onRefresh();
+        onClose();
+      } else {
+        toast.error("Lỗi khi lưu dữ liệu!");
+      }
+    } catch { toast.error("Lỗi kết nối Server!"); }
+    finally { setIsSubmitting(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`⚠️ Bạn có chắc chắn muốn xóa tài khoản [${user.username}] không?`)) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/auth_ser/users/${user.id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success("Đã xóa tài khoản!");
+        onRefresh();
+        onClose();
+      }
+    } catch { toast.error("Lỗi kết nối Server!"); }
+    finally { setIsSubmitting(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className="modal-header">
+          <span>Thiết lập Hồ sơ Nhân sự</span>
+          <FaTimes style={{ cursor: "pointer", color: "var(--text-light)" }} onClick={onClose} />
+        </div>
+        <form onSubmit={handleSave}>
+          <div className="modal-body">
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>{user.full_name || user.username}</div>
+              <div style={{ color: "var(--text-sub)", fontSize: 13 }}>{user.email}</div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Phòng ban công tác</label>
+              <div style={{ padding: "12px 15px", background: "#F1F5F9", borderRadius: "8px", border: "1px solid #E2E8F0", color: "#64748B", fontWeight: 600 }}>
+                {currentDept} (Cố định)
               </div>
-
-              {/* ── Thanh Điều Hướng Phân Trang ──────────────────────────────── */}
-              {totalPages > 1 && (
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 30 }}>
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #CBD5E1", background: currentPage === 1 ? "#F1F5F9" : "white", color: currentPage === 1 ? "#94A3B8" : "#1E293B", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14 }}
-                  >
-                    Trước
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 8,
-                        border: "1px solid " + (currentPage === page ? "var(--primary)" : "#CBD5E1"),
-                        background: currentPage === page ? "var(--primary)" : "white",
-                        color: currentPage === page ? "white" : "#1E293B",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        fontSize: 14
-                      }}
-                    >
-                      {page}
-                    </button>
-                  ))}
-
-                  <button
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #CBD5E1", background: currentPage === totalPages ? "#F1F5F9" : "white", color: currentPage === totalPages ? "#94A3B8" : "#1E293B", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontWeight: 600, fontSize: 14 }}
-                  >
-                    Sau
-                  </button>
-                </div>
-              )}
-            </>
-          )
-        }
+            </div>
+            <div className="form-group">
+              <label className="form-label">Quỹ phép tiêu chuẩn</label>
+              <div style={{ padding: "12px 15px", background: "#F1F5F9", borderRadius: "8px", border: "1px solid #E2E8F0", color: "#64748B", fontWeight: 600 }}>
+                12 ngày / năm (Cố định)
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Lương cơ bản (VND)</label>
+              <input className="form-control" type="number" value={salary} onChange={e => setSalary(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Vai trò chức vụ</label>
+              <select className="form-control" value={role} onChange={e => setRole(e.target.value)}>
+                <option value="STAFF">Nhân viên (STAFF)</option>
+                <option value="MANAGER">Quản lý (MANAGER)</option>
+              </select>
+            </div>
+          </div>
+          <div className="modal-actions" style={{ justifyContent: "space-between" }}>
+            <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={isSubmitting}>
+              <FaTrashAlt /> Xóa tài khoản
+            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
+              <button type="submit" className="btn-primary" disabled={isSubmitting}>Lưu thay đổi</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );
 };
 
-export default ManagerLeaveHistory;
+// ════ MODAL THÊM MỚI NHÂN VIÊN ════
+const AddUserModal = ({ departments, token, currentUser, onClose, onRefresh }) => {
+  const isManager = currentUser.role === "MANAGER";
+
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    full_name: "",
+    role: "STAFF",
+    department_id: isManager ? (currentUser.department_id || "") : ""
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/auth_ser/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        toast.success("Thêm nhân viên thành công!");
+        onRefresh();
+        onClose();
+      } else {
+        const data = await res.json();
+        toast.error(data.message || "Lỗi khi thêm nhân viên!");
+      }
+    } catch { toast.error("Lỗi kết nối Server!"); }
+    finally { setIsSubmitting(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
+        <div className="modal-header">
+          <span>Thêm Nhân Sự Mới</span>
+          <FaTimes style={{ cursor: "pointer", color: "var(--text-light)" }} onClick={onClose} />
+        </div>
+        {/* 🔥 TẮT TÍNH NĂNG TỰ ĐỘNG ĐIỀN CỦA TRÌNH DUYỆT Ở CẤP FORM */}
+        <form onSubmit={handleSubmit} autoComplete="off">
+          <div className="modal-body">
+            <div className="form-group">
+              <label className="form-label">Tên đăng nhập *</label>
+              {/* 🔥 Tắt auto-fill cho tên đăng nhập */}
+              <input
+                className="form-control"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                autoComplete="off"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email *</label>
+              <input
+                className="form-control"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                autoComplete="off"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Mật khẩu *</label>
+              {/* 🔥 BUỘC TRÌNH DUYỆT NHẬN DIỆN ĐÂY LÀ MẬT KHẨU MỚI BẰNG "new-password" */}
+              <input
+                className="form-control"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Họ và Tên</label>
+              <input
+                className="form-control"
+                name="full_name"
+                value={formData.full_name}
+                onChange={handleChange}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Phòng ban ban đầu</label>
+              <select
+                className="form-control"
+                name="department_id"
+                value={formData.department_id}
+                onChange={handleChange}
+                disabled={isManager}
+              >
+                <option value="">-- Chưa phân bổ --</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              {isManager && (
+                <div style={{ fontSize: 12, color: "var(--text-sub)", marginTop: 4 }}>
+                  * Bạn chỉ có thể tạo tài khoản cho nhân viên thuộc phòng ban của mình.
+                </div>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Vai trò</label>
+              <select
+                className="form-control"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                disabled={isManager}
+              >
+                <option value="STAFF">Nhân viên (STAFF)</option>
+                {!isManager && <option value="MANAGER">Quản lý (MANAGER)</option>}
+              </select>
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>Thêm mới</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default UserManagement;
