@@ -58,9 +58,14 @@ services:
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
     depends_on:
-      - haproxy
-      - mongo-init
-      - redis
+      haproxy:
+        condition: service_started
+      postgres-1:
+        condition: service_healthy # 🔥 Ép Auth Service đợi DB khởi tạo xong hoàn toàn
+      mongo-init:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - app-network
 
@@ -81,8 +86,12 @@ services:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
     depends_on:
-      - haproxy
-      - mongo-init
+      haproxy:
+        condition: service_started
+      postgres-1:
+        condition: service_healthy # 🔥 Ép Leave Service đợi DB khởi tạo xong hoàn toàn
+      mongo-init:
+        condition: service_started
     networks:
       - app-network
 
@@ -124,6 +133,12 @@ services:
       - "5432"
     depends_on:
       - etcd
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -p 5432" ] # 🔥 Kiểm tra cổng DB sẵn sàng nhận kết nối chưa
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s # 🔥 Tăng thời gian chờ khởi động DB vì Spilo có thể mất thời gian để thiết lập cluster
     networks:
       - app-network
 
