@@ -1,6 +1,9 @@
--- Dọn dẹp sạch sẽ CSDL cũ để tạo lại từ đầu (Rất tiện khi test)
+-- Dọn dẹp sạch sẽ CSDL cũ để tạo lại từ đầu (Rất tiện khi dựng lại hệ thống)
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
+
+-- 🔥 BẬT TÍNH NĂNG MÃ HÓA BCRYPT TRỰC TIẾP TRÊN POSTGRESQL
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ==========================================
 -- PHẦN 1: QUẢN LÝ TÀI KHOẢN, PHÒNG BAN & NGHỈ PHÉP
@@ -24,7 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100),
     phone_number VARCHAR(15),
     avatar_url VARCHAR(255),
-    department_id INT REFERENCES departments(id) ON DELETE SET NULL, -- NHÂN VIÊN THUỘC PHÒNG NÀO?
+    department_id INT REFERENCES departments(id) ON DELETE SET NULL,
     max_leave_days INT DEFAULT 12, 
     role VARCHAR(20) DEFAULT 'STAFF', 
     status VARCHAR(20) DEFAULT 'PENDING_ADMIN', 
@@ -143,11 +146,14 @@ CREATE TABLE IF NOT EXISTS monthly_payrolls (
     payroll_month INT NOT NULL, 
     payroll_year INT NOT NULL,  
     base_salary DECIMAL(15, 2), 
+    standard_work_days INT NOT NULL, 
     total_working_days INT,     
-    total_leave_days INT,       
-    total_unpaid_leave_days INT DEFAULT 0, 
+    total_leave_days INT,        
+    total_unpaid_leave_days INT DEFAULT 0,
+    total_late_days INT DEFAULT 0,   
+    total_unexcused_days INT DEFAULT 0,
     total_bonus DECIMAL(15, 2) DEFAULT 0,
-    total_penalty DECIMAL(15, 2) DEFAULT 0,
+    total_penalty DECIMAL(15, 2) DEFAULT 0, 
     net_salary DECIMAL(15, 2) NOT NULL, 
     status VARCHAR(20) DEFAULT 'DRAFT', 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -155,16 +161,16 @@ CREATE TABLE IF NOT EXISTS monthly_payrolls (
 );
 
 -- ==========================================
--- DỮ LIỆU MẪU (SEED DATA)
+-- PHẦN 5: DỮ LIỆU KHỞI TẠO (SEED DATA)
 -- ==========================================
 
--- 1. Tạo Phòng Ban
+-- 1. Tạo các Phòng Ban
 INSERT INTO departments (name, description) VALUES 
-('Ban Giám Đốc', 'Quản lý điều hành chung'),
-('Phòng IT', 'Phát triển phần mềm & Hệ thống'),
-('Phòng Hành Chính Nhân Sự', 'Quản trị nhân lực');
+('Giám Đốc', 'Quản lý điều hành chung toàn hệ thống'),
+('Phòng IT', 'Phát triển phần mềm & Quản trị hệ thống mạng'),
+('Phòng Hành Chính Nhân Sự', 'Quản trị nhân lực, chấm công & tiền lương');
 
--- 2. Tạo Tài khoản Superadmin mặc định (Thuộc Ban Giám Đốc)
+-- 2. Tạo Tài khoản Superadmin mặc định (ID phòng: 1)
 INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id) 
 VALUES (
     'superadmin', 
@@ -173,6 +179,65 @@ VALUES (
     'hnd10112005@gmail.com', 
     'SUPERADMIN', 
     'ACTIVE', 
-    50000000,
-    1 -- ID của Ban Giám Đốc
+    50000000, 
+    1
+);
+
+-- 3. Tạo Tài khoản Manager phòng Hành Chính Nhân Sự (ID phòng: 3)
+INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id) 
+VALUES (
+    'manager_hcns', 
+    crypt('23010243', gen_salt('bf', 10)), 
+    'Trưởng Phòng Nhân Sự', 
+    'managehcns@gmail.com', 
+    'MANAGER', 
+    'ACTIVE', 
+    25000000, 
+    3
+);
+
+-- 4. Tạo Tài khoản Manager phòng IT (ID phòng: 2)
+INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id) 
+VALUES (
+    'manager_it', 
+    crypt('23010243', gen_salt('bf', 10)), 
+    'Trưởng Phòng IT', 
+    'managerit@gmail.com', 
+    'MANAGER', 
+    'ACTIVE', 
+    30000000, 
+    2
+);
+
+-- 5. Tự động kết nối ID Trưởng phòng ngược lại vào bảng departments
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE username = 'manager_it') WHERE id = 2;
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE username = 'manager_hcns') WHERE id = 3;
+
+-- 6. THÊM MỚI: 2 tài khoản nhân viên test (STAFF) - Mật khẩu: 12345678
+-- Nhân viên 1: Thuộc phòng IT (department_id = 2)
+INSERT INTO users (username, password, full_name, email, phone_number, role, status, base_salary, department_id)
+VALUES (
+    'hanknguyen',
+    crypt('12345678', gen_salt('bf', 10)),
+    'Hank Nguyễn',
+    'hank@gmail.com',
+    '09212821731',
+    'STAFF',
+    'ACTIVE',
+    12000000,
+    2
+);
+
+-- Nhân viên 2: Thuộc phòng HCNS (department_id = 3)
+INSERT INTO users (username, password, full_name, email, phone_number, role, status, base_salary, department_id)
+VALUES (
+    'hanhnguyen',
+    crypt('12345678', gen_salt('bf', 10)),
+    'Hanh Nguyễn',
+    'hanhnguyen@gmail.com',
+    '0921715412',
+    'STAFF',
+    'ACTIVE',
+    10000000,
+    3
 );
