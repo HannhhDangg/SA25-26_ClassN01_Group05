@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBuilding, FaArrowRight, FaCheck, FaClock, FaCalendarAlt, FaCoins, FaShieldAlt } from "react-icons/fa";
 import OtpInput from "../components/OtpInput";
@@ -30,10 +30,8 @@ const StepBar = ({ current }) => {
 };
 
 // ─── Cột trái Brand Panel ────────────────────────────────────
-// Hiển thị logo + tagline + 4 tính năng nổi bật
 const BrandPanel = () => (
   <div className="login-left">
-    {/* Logo */}
     <div className="login-brand">
       <div className="login-brand-icon"><FaBuilding size={22} /></div>
       <div>
@@ -41,13 +39,9 @@ const BrandPanel = () => (
         <div className="login-brand-sub">Hệ thống quản lý nhân sự</div>
       </div>
     </div>
-
-    {/* Tagline */}
     <p className="login-tagline">
       Nền tảng quản lý nhân sự tập trung, hiện đại và dễ sử dụng cho doanh nghiệp.
     </p>
-
-    {/* 4 tính năng */}
     <div className="login-features">
       <div className="login-feature">
         <div className="login-feature-icon"><FaClock size={15} /></div>
@@ -73,15 +67,39 @@ const BrandPanel = () => (
 const Login = () => {
   const navigate = useNavigate();
 
-  // mode: "login" | "register" | "otp" | "success"
   const [mode, setMode] = useState("login");
   const [loading, setLoading] = useState(false);
+
+  // ✅ Bổ sung department_id vào State
   const [formData, setFormData] = useState({
     username: "", password: "",
     fullName: "", email: "", phone: "", role: "STAFF",
+    department_id: "" // Mới thêm
   });
 
+  // ✅ State lưu danh sách phòng ban và trạng thái xác nhận
+  const [departments, setDepartments] = useState([]);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+
   const set = (field) => (e) => setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+
+  // ✅ Gọi API lấy danh sách phòng ban khi ở chế độ Đăng ký
+  useEffect(() => {
+    if (mode === "register") {
+      fetch("/api/auth_ser/departments")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            // 🔥 LỌC BỎ BAN GIÁM ĐỐC: Loại trừ phòng ban có ID = 1
+            const publicDepartments = data.filter(d => parseInt(d.id) !== 1);
+            setDepartments(publicDepartments);
+          } else {
+            setDepartments([]);
+          }
+        })
+        .catch(err => console.error("Lỗi tải phòng ban:", err));
+    }
+  }, [mode]);
 
   // ── Đăng nhập ────────────────────────────────────────────
   const handleLogin = async (e) => {
@@ -115,6 +133,12 @@ const Login = () => {
   // ── Bước 1: Gửi OTP ──────────────────────────────────────
   const handleRequestOtp = async (e) => {
     e.preventDefault();
+    // ✅ Kiểm tra bảo mật form Đăng ký
+    if (!formData.department_id || !isConfirmed) {
+      alert("Vui lòng chọn phòng ban và tích xác nhận!");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/otp/send-otp", {
@@ -142,7 +166,7 @@ const Login = () => {
       const res = await fetch("/api/auth_ser/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData), // Lúc này formData đã có sẵn department_id
       });
       const data = await res.json();
       if (res.ok) {
@@ -158,16 +182,14 @@ const Login = () => {
   };
 
   const resetForm = () => {
-    setFormData({ username: "", password: "", fullName: "", email: "", phone: "", role: "STAFF" });
+    setFormData({ username: "", password: "", fullName: "", email: "", phone: "", role: "STAFF", department_id: "" });
+    setIsConfirmed(false);
     setMode("login");
   };
 
   return (
     <div className="login-page">
-      {/* ── Cột trái: Brand ──────────────────────────────── */}
       <BrandPanel />
-
-      {/* ── Cột phải: Form ───────────────────────────────── */}
       <div className="login-right">
 
         {/* ══ ĐĂNG NHẬP ══ */}
@@ -214,36 +236,71 @@ const Login = () => {
             <div className="login-form-title">Tạo tài khoản mới</div>
             <div className="login-form-sub" style={{ marginBottom: 18 }}>Điền đầy đủ thông tin để tiếp tục</div>
 
-            <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column" }}>
-              <label className="form-label">Họ và tên <span style={{ color: "#DC2626" }}>*</span></label>
-              <input className="login-input" placeholder="VD: Nguyễn Văn An" value={formData.fullName} onChange={set("fullName")} required />
+            {/* Thêm style để form có thể scroll nếu màn hình nhỏ */}
+            <div style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "5px" }} className="custom-scrollbar">
+              <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column" }}>
+                <label className="form-label">Họ và tên <span style={{ color: "#DC2626" }}>*</span></label>
+                <input className="login-input" placeholder="VD: Nguyễn Văn An" value={formData.fullName} onChange={set("fullName")} required />
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label className="form-label">Tên đăng nhập <span style={{ color: "#DC2626" }}>*</span></label>
-                  <input className="login-input" style={{ marginBottom: 0 }} placeholder="VD: nguyenvanan" value={formData.username} onChange={set("username")} required />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                  <div>
+                    <label className="form-label">Tên đăng nhập <span style={{ color: "#DC2626" }}>*</span></label>
+                    <input className="login-input" style={{ marginBottom: 0 }} placeholder="VD: nguyenvanan" value={formData.username} onChange={set("username")} required />
+                  </div>
+                  <div>
+                    <label className="form-label">Số điện thoại</label>
+                    <input className="login-input" style={{ marginBottom: 0 }} placeholder="0901 234 567" value={formData.phone} onChange={set("phone")} />
+                  </div>
                 </div>
-                <div>
-                  <label className="form-label">Số điện thoại</label>
-                  <input className="login-input" style={{ marginBottom: 0 }} placeholder="0901 234 567" value={formData.phone} onChange={set("phone")} />
-                </div>
-              </div>
 
-              <label className="form-label">
-                Email <span style={{ color: "#DC2626" }}>*</span>
-                <span style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 400 }}> — dùng để nhận mã OTP</span>
-              </label>
-              <input className="login-input" type="email" placeholder="email@congty.vn" value={formData.email} onChange={set("email")} required />
+                <label className="form-label">
+                  Email <span style={{ color: "#DC2626" }}>*</span>
+                  <span style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 400 }}> — dùng để nhận mã OTP</span>
+                </label>
+                <input className="login-input" type="email" placeholder="email@congty.vn" value={formData.email} onChange={set("email")} required />
 
-              <label className="form-label">Mật khẩu <span style={{ color: "#DC2626" }}>*</span></label>
-              <input className="login-input" type="password" placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={set("password")} required minLength={8} />
+                <label className="form-label">Mật khẩu <span style={{ color: "#DC2626" }}>*</span></label>
+                <input className="login-input" type="password" placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={set("password")} required minLength={8} />
 
-              <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Đang gửi OTP..." : <>{`Tiếp tục — Nhận mã OTP`} <FaArrowRight size={12} /></>}
-              </button>
-            </form>
+                {/* ✅ KHU VỰC CHỌN PHÒNG BAN MỚI THÊM */}
+                <label className="form-label">Phòng ban công tác <span style={{ color: "#DC2626" }}>*</span></label>
+                <select
+                  className="login-input"
+                  value={formData.department_id}
+                  onChange={set("department_id")}
+                  required
+                  style={{ cursor: "pointer", color: formData.department_id ? "inherit" : "#94A3B8" }}
+                >
+                  <option value="">-- Vui lòng chọn phòng ban --</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name} {d.manager_name ? `(QL: ${d.manager_name})` : ""}</option>
+                  ))}
+                </select>
 
-            <div className="login-switch">
+                {/* ✅ CHECKBOX XÁC NHẬN */}
+                {formData.department_id && (
+                  <div style={{ marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start", background: "#FEF2F2", padding: "12px", borderRadius: 8, border: "1px dashed #F87171" }}>
+                    <input
+                      type="checkbox"
+                      id="confirmDept"
+                      required
+                      checked={isConfirmed}
+                      onChange={(e) => setIsConfirmed(e.target.checked)}
+                      style={{ marginTop: 4, transform: "scale(1.2)", cursor: "pointer", flexShrink: 0 }}
+                    />
+                    <label htmlFor="confirmDept" style={{ fontSize: 13.5, color: "#991B1B", cursor: "pointer", lineHeight: 1.4, margin: 0 }}>
+                      <strong>Tôi xác nhận:</strong> Đây đúng là Phòng ban và Quản lý trực tiếp của tôi. Nếu chọn sai, tài khoản sẽ bị từ chối phê duyệt.
+                    </label>
+                  </div>
+                )}
+
+                <button type="submit" className="login-btn" disabled={loading || !formData.department_id || !isConfirmed}>
+                  {loading ? "Đang gửi OTP..." : <>{`Tiếp tục — Nhận mã OTP`} <FaArrowRight size={12} /></>}
+                </button>
+              </form>
+            </div>
+
+            <div className="login-switch" style={{ marginTop: 15 }}>
               Đã có tài khoản? <span onClick={() => setMode("login")}>Đăng nhập</span>
             </div>
           </>

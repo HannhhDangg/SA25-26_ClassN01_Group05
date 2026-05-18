@@ -15,48 +15,57 @@ redisClient.connect().then(() => console.log('Connected to Redis for Auth'));
 
 // --- 1. API ĐĂNG KÝ (Register) ---
 router.post("/register", async (req, res) => {
-  // Nhận dữ liệu từ Frontend (Frontend gửi fullName, phone...)
-  const { username, password, fullName, email, phone, role } = req.body;
+  const {
+    username, password, fullName, full_name, email,
+    phone, phone_number, role, department_id, departmentId
+  } = req.body;
+
+  const actualFullName = full_name || fullName || null;
+  const actualPhone = phone_number || phone || null;
+  const inputDept = department_id || departmentId || null;
 
   try {
-    // Kiểm tra user tồn tại
-    const userExist = await pool.query(
-      "SELECT * FROM users WHERE username = $1",
-      [username],
-    );
+    const userExist = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
     if (userExist.rows.length > 0) {
       return res.status(400).json({ message: "Tên đăng nhập đã tồn tại!" });
     }
 
-    // Mã hóa mật khẩu
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Trạng thái mặc định
     const status = "PENDING_ADMIN";
-    // Xác định role cuối cùng (nếu có role MANAGER thì giữ nguyên, còn lại mặc định là STAFF)
     const finalRole = (role === "MANAGER") ? "MANAGER" : "STAFF";
-    // Lưu vào DB
+
+    // 🔥 XỬ LÝ ID PHÒNG BAN CHUẨN XÁC, CHỐNG LỖI NaN
+    let parsedDeptId = null;
+    if (inputDept && String(inputDept).trim() !== "") {
+      const num = parseInt(inputDept, 10);
+      if (!isNaN(num)) {
+        parsedDeptId = num;
+      } else {
+        // Fallback: Nếu gửi lên tên phòng ban bằng chữ
+        const deptCheck = await pool.query(
+          "SELECT id FROM departments WHERE name ILIKE $1 OR name ILIKE $2",
+          [inputDept, `%${inputDept}%`]
+        );
+        if (deptCheck.rows.length > 0) {
+          parsedDeptId = deptCheck.rows[0].id;
+        }
+      }
+    }
+
     const newUser = await pool.query(
-      `INSERT INTO users (username, password, full_name, email, phone_number, role, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        username,
-        hashedPassword,
-        fullName,
-        email,
-        phone,
-        finalRole, // <--- Truyền biến finalRole đã được kiểm duyệt vào đây
-        status,
-      ],
+      `INSERT INTO users (username, password, full_name, email, phone_number, role, status, department_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [username, hashedPassword, actualFullName, email, actualPhone, finalRole, status, parsedDeptId]
     );
 
     res.status(201).json({
-      message: "Đăng ký thành công! Vui lòng chờ Admin phê duyệt.",
+      message: "Đăng ký thành công! Vui lòng chờ Trưởng phòng phê duyệt.",
       user: newUser.rows[0],
     });
   } catch (err) {
-    console.error(err);
+    console.error("Lỗi đăng ký:", err);
     res.status(500).json({ message: "Lỗi server khi đăng ký" });
   }
 });
@@ -64,55 +73,29 @@ router.post("/register", async (req, res) => {
 // --- 2. API ĐĂNG NHẬP (Login) --- 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
-
   try {
-    // 1. Lấy TẤT CẢ thông tin user
-    const result = await pool.query("SELECT * FROM users WHERE username = $1", [
-      username,
-    ]);
+    const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
     const user = result.rows[0];
 
-    // Kiểm tra tồn tại
-    if (!user)
-      return res
-        .status(400)
-        .json({ message: "Sai tên đăng nhập hoặc mật khẩu" });
+    if (!user) return res.status(400).json({ message: "Sai tên đăng nhập hoặc mật khẩu" });
 
-    // Kiểm tra mật khẩu
     const validPass = await bcrypt.compare(password, user.password);
-    if (!validPass)
-      return res
-        .status(400)
-        .json({ message: "Sai tên đăng nhập hoặc mật khẩu" });
+    if (!validPass) return res.status(400).json({ message: "Sai tên đăng nhập hoặc mật khẩu" });
 
-    // Kiểm tra trạng thái
     if (user.status !== "ACTIVE") {
-      return res.status(403).json({
-        message: "Tài khoản chưa được kích hoạt hoặc đang chờ duyệt.",
-      });
+      return res.status(403).json({ message: "Tài khoản chưa được kích hoạt hoặc đang chờ duyệt." });
     }
 
-    // Tạo Token
     const token = jwt.sign(
-      { id: user.id, role: user.role, username: user.username },
+      { id: user.id, role: user.role, username: user.username, department_id: user.department_id },
       process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi",
-      { expiresIn: "1d" },
+      { expiresIn: "1d" }
     );
 
-    // --- QUAN TRỌNG: Lưu Session vào Redis ---
-    // Lưu key là ID người dùng, value là token. Thời gian sống (EX) là 86400 giây (1 ngày)
-    await redisClient.set(`session:${user.id}`, token, {
-      EX: 86400
-    });
+    await redisClient.set(`session:${user.id}`, token, { EX: 86400 });
 
-    // --- QUAN TRỌNG: Tách mật khẩu ra, trả về toàn bộ thông tin còn lại ---
     const { password: hashedPassword, ...userInfo } = user;
-
-    res.json({
-      message: "Đăng nhập thành công!",
-      token: token,
-      user: userInfo, // <--- User này chứa đầy đủ: email, avatar_url, full_name...
-    });
+    res.json({ message: "Đăng nhập thành công!", token: token, user: userInfo });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Lỗi server khi đăng nhập" });
@@ -121,13 +104,9 @@ router.post("/login", async (req, res) => {
 
 // --- 3. API ĐĂNG XUẤT (Logout) ---
 router.post("/logout", async (req, res) => {
-  const { userId } = req.body; // Hoặc lấy từ middleware decode token
-  if (!userId) {
-    return res.status(400).json({ message: "Cần userId để đăng xuất" });
-  }
-
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ message: "Cần userId để đăng xuất" });
   try {
-    // Xóa session khỏi Redis
     await redisClient.del(`session:${userId}`);
     res.json({ message: "Đăng xuất thành công!" });
   } catch (err) {
