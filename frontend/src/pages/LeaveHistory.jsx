@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { io } from "socket.io-client";
-import { toast } from "react-toastify";
 import { FaHistory } from "react-icons/fa";
 
 const LeaveHistory = () => {
@@ -14,61 +12,53 @@ const LeaveHistory = () => {
                 ? `/api/leave_ser/${user.id}`
                 : `/api/users/${user.id}`;
             const res = await fetch(url);
-            if (res.ok) { const d = await res.json(); setLeaves(Array.isArray(d) ? d : []); }
+            if (res.ok) {
+                const d = await res.json();
+                setLeaves(Array.isArray(d) ? d : []);
+            }
         } catch { console.error("Lỗi tải lịch sử"); }
     }, [user?.id, user?.role]);
 
     useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
 
-    useEffect(() => {
-        const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
-        socket.on("leave_status_update", data => {
-            if (data.target_user_id == user.id) {
-                data.status === "APPROVED" ? toast.success(data.message) : data.status === "REJECTED" ? toast.error(data.message) : toast.info(data.message);
-                fetchLeaves();
-            }
-        });
-        return () => socket.disconnect();
-    }, [fetchLeaves, user.id]);
-
     const statusBadge = s => {
-        if (s === "APPROVED") return <span className="badge badge-green">✅ Đã duyệt</span>;
-        if (s === "REJECTED") return <span className="badge badge-red">❌ Từ chối</span>;
-        return <span className="badge badge-amber">⏳ Chờ duyệt</span>;
+        if (s === "APPROVED") return <span style={{ padding: "6px 12px", borderRadius: 20, background: "#d1fae5", color: "#065f46", fontSize: 13, fontWeight: 600 }}>✅ Đã duyệt</span>;
+        if (s === "REJECTED") return <span style={{ padding: "6px 12px", borderRadius: 20, background: "#fee2e2", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>❌ Từ chối</span>;
+        return <span style={{ padding: "6px 12px", borderRadius: 20, background: "#fef3c7", color: "#92400e", fontSize: 13, fontWeight: 600 }}>⏳ Chờ duyệt</span>;
     };
 
     return (
-        <div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
-                <FaHistory style={{ color: "var(--primary)" }} /> Lịch sử Nghỉ phép
+        <div style={{ padding: "20px", maxWidth: 1200, margin: "0 auto" }}>
+            <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text)", marginBottom: 30, display: "flex", alignItems: "center", gap: 12 }}>
+                <FaHistory style={{ color: "var(--primary)" }} /> Lịch Sử Xin Nghỉ Phép
             </div>
 
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ background: "white", borderRadius: 16, padding: "30px", boxShadow: "0 10px 30px rgba(0,0,0,0.05)" }}>
                 {leaves.length === 0
-                    ? <div style={{ padding: 40, textAlign: "center", color: "var(--text-light)" }}>Bạn chưa có đơn nghỉ phép nào.</div>
+                    ? <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--text-light)", fontSize: 16 }}>Bạn chưa gửi đơn nghỉ phép nào.</div>
                     : (
-                        <div className="table-wrap-scroll">
-                            <table>
+                        <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                                 <thead>
-                                    <tr>
-                                        <th>Thời gian</th>
-                                        <th>Lý do</th>
-                                        <th>Số ngày</th>
-                                        <th>Trạng thái</th>
-                                        <th>Ngày gửi</th>
+                                    <tr style={{ background: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
+                                        <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Thời gian nghỉ</th>
+                                        <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Lý do</th>
+                                        <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569", textAlign: "center" }}>Số ngày</th>
+                                        <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Trạng thái</th>
+                                        <th style={{ padding: "16px 20px", fontWeight: 600, color: "#475569" }}>Ngày gửi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {leaves.map(l => (
-                                        <tr key={l.id}>
-                                            <td style={{ fontSize: 13 }}>
-                                                <div style={{ fontWeight: 500 }}>{new Date(l.start_date).toLocaleDateString("vi-VN")}</div>
-                                                <div className="cell-sub">đến {new Date(l.end_date).toLocaleDateString("vi-VN")}</div>
+                                        <tr key={l.id} style={{ borderBottom: "1px solid #F1F5F9", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                                            <td style={{ padding: "16px 20px" }}>
+                                                <div style={{ fontWeight: 600, color: "#1E293B", fontSize: 15 }}>{new Date(l.start_date).toLocaleDateString("vi-VN")}</div>
+                                                <div style={{ color: "#64748B", fontSize: 13, marginTop: 4 }}>đến {new Date(l.end_date).toLocaleDateString("vi-VN")}</div>
                                             </td>
-                                            <td style={{ maxWidth: 300, fontSize: 13 }}>{l.reason}</td>
-                                            <td style={{ fontWeight: 600 }}>{l.total_days}</td>
-                                            <td>{statusBadge(l.status)}</td>
-                                            <td style={{ fontSize: 12, color: "var(--text-sub)" }}>{new Date(l.created_at).toLocaleDateString("vi-VN")}</td>
+                                            <td style={{ padding: "16px 20px", maxWidth: 350, color: "#334155", fontSize: 15, lineHeight: 1.5 }}>{l.reason}</td>
+                                            <td style={{ padding: "16px 20px", fontWeight: 700, color: "#0F172A", textAlign: "center", fontSize: 16 }}>{l.total_days}</td>
+                                            <td style={{ padding: "16px 20px" }}>{statusBadge(l.status)}</td>
+                                            <td style={{ padding: "16px 20px", fontSize: 14, color: "#64748B" }}>{new Date(l.created_at).toLocaleDateString("vi-VN")}</td>
                                         </tr>
                                     ))}
                                 </tbody>

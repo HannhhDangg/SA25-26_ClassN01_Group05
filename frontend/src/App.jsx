@@ -47,7 +47,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
 
-        {/* === ADMIN ROUTES === */}
+        {/* === ADMIN ROUTES (Dành cho SUPERADMIN & MANAGER) === */}
         <Route
           path="/admin"
           element={
@@ -68,6 +68,19 @@ function App() {
             </PrivateRoute>
           }
         />
+
+        {/* 🔥 ĐÃ THÊM: NÚT TẠO ĐƠN NGHỈ PHÉP CHO MANAGER SẼ CHẠY VÀO ĐÂY */}
+        <Route
+          path="/admin/leaves/new"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <CreateLeave />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
         <Route
           path="/admin/users"
           element={
@@ -79,7 +92,7 @@ function App() {
           }
         />
 
-        {/* === EMPLOYEE ROUTES === */}
+        {/* === EMPLOYEE ROUTES (Dành cho STAFF) === */}
         <Route
           path="/employee"
           element={
@@ -91,7 +104,7 @@ function App() {
           }
         />
 
-        {/* Trang Tạo đơn xin nghỉ phép */}
+        {/* Trang Tạo đơn xin nghỉ phép của STAFF */}
         <Route
           path="/employee/leaves/new"
           element={
