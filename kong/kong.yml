@@ -6,9 +6,9 @@ services:
     plugins:
       - name: rate-limiting
         config:
-          minute: 10 # Cực kỳ quan trọng: Chỉ cho phép 1 IP gọi API Auth/OTP 10 lần/phút
+          minute: 100 # Cực kỳ quan trọng: Chỉ cho phép 1 IP gọi API Auth/OTP 100 lần/phút
           limit_by: ip
-          policy: locals
+          policy: local
     routes:
       - name: auth-routes
         paths:
