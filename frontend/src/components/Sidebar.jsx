@@ -36,7 +36,7 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
 
   // Kiểm tra active: trang gốc khớp chính xác, trang con dùng startsWith
   const isActive = (path) => {
-    const exactRoots = ["/admin", "/employee", "/manager"];
+    const exactRoots = ["/admin", "/employee"];
     return exactRoots.includes(path)
       ? location.pathname === path
       : location.pathname.startsWith(path);
@@ -89,17 +89,19 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
         {role === "MANAGER" && (
           <>
             <div className="menu-label">Tổng quan</div>
-            <MenuItem icon={FaThLarge} label="Trang chủ" active={isActive("/manager")} onClick={() => navigate("/manager")} />
+            {/* Đã đồng bộ URL về /admin */}
+            <MenuItem icon={FaThLarge} label="Trang chủ" active={isActive("/admin")} onClick={() => navigate("/admin")} />
 
             <div className="menu-label">Nghiệp vụ</div>
-            <MenuItem icon={FaClipboardCheck} label="Chấm công" active={isActive("/manager/attendance")} onClick={() => navigate("/manager/attendance")} />
+            <MenuItem icon={FaClipboardCheck} label="Chấm công" active={isActive("/admin/attendance")} onClick={() => navigate("/admin/attendance")} />
 
-            {/* Manager vừa có thể tạo đơn cho mình, vừa duyệt đơn cho nhân viên */}
-            <MenuItem icon={FaPlusCircle} label="Tạo đơn nghỉ phép" active={isActive("/manager/leaves/new")} onClick={() => navigate("/manager/leaves/new")} />
-            <MenuItem icon={FaCalendarAlt} label="Duyệt nghỉ phép" active={isActive("/manager/leaves")} onClick={() => navigate("/manager/leaves")} badge={pendingLeaves} />
+            <MenuItem icon={FaPlusCircle} label="Tạo đơn nghỉ phép" active={isActive("/admin/leaves/new")} onClick={() => navigate("/admin/leaves/new")} />
+            <MenuItem icon={FaCalendarAlt} label="Duyệt nghỉ phép" active={isActive("/admin/leaves")} onClick={() => navigate("/admin/leaves")} badge={pendingLeaves} />
 
-            <MenuItem icon={FaCalendarCheck} label="Lịch & Ca làm" active={isActive("/manager/schedule")} onClick={() => navigate("/manager/schedule")} />
-            <MenuItem icon={FaUsers} label="Nhân sự nhóm" active={isActive("/manager/users")} onClick={() => navigate("/manager/users")} />
+            <MenuItem icon={FaCalendarCheck} label="Lịch & Ca làm" active={isActive("/admin/schedule")} onClick={() => navigate("/admin/schedule")} />
+
+            {/* Đây là nút Quản lý nhân sự của Manager, chung URL với Superadmin */}
+            <MenuItem icon={FaUsers} label="Nhân sự nhóm" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} />
           </>
         )}
 

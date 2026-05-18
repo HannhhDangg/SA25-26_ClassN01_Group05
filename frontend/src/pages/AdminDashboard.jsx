@@ -12,15 +12,20 @@ const AdminDashboard = () => {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("Tất cả");
 
-  // State quản lý phân trang
   const [currentPage, setCurrentPage] = useState(1);
+
+  // 🔥 LẤY TOKEN ĐỂ CHỨNG MINH DANH TÍNH VỚI BACKEND
+  const token = localStorage.getItem("token");
 
   const formatID = id => `HD${String(id).padStart(2, "0")}`;
 
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/leave_ser");
+      // 🔥 ĐÍNH KÈM TOKEN VÀO ĐÂY ĐỂ KHÔNG BỊ LỖI 401 UNAUTHORIZED NỮA
+      const res = await fetch("/api/leave_ser", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       const data = await res.json();
       setRequests(Array.isArray(data) ? data : []);
     } catch { toast.error("Không thể tải dữ liệu!"); }
@@ -30,11 +35,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchRequests();
     const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
-    socket.on("new_leave_request", data => { toast.info("🔔 " + data.message); fetchRequests(); });
+    socket.on("new_leave_request", data => { fetchRequests(); });
     return () => socket.disconnect();
   }, []);
 
-  // Reset về trang 1 mỗi khi đổi Tab hoặc gõ Tìm kiếm
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, search]);
@@ -43,7 +47,16 @@ const AdminDashboard = () => {
     const label = status === "APPROVED" ? "DUYỆT" : "TỪ CHỐI";
     if (!window.confirm(`Xác nhận ${label} đơn của ${name}?`)) return;
     try {
-      const res = await fetch(`/api/leave_ser/${id}/status`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+      // 🔥 ĐÍNH KÈM TOKEN VÀO ĐÂY ĐỂ CÓ QUYỀN DUYỆT ĐƠN
+      const res = await fetch(`/api/leave_ser/${id}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
       if (res.ok) {
         toast.success(`Đã ${status === "APPROVED" ? "duyệt" : "từ chối"} thành công!`);
         fetchRequests();
@@ -52,7 +65,6 @@ const AdminDashboard = () => {
     } catch { toast.error("Lỗi kết nối!"); }
   };
 
-  // 1. LỌC DỮ LIỆU TRƯỚC
   const filtered = requests.filter(r => {
     const term = search.toLowerCase();
     const matchSearch =
@@ -67,11 +79,10 @@ const AdminDashboard = () => {
     return matchSearch && matchTab;
   });
 
-  // 2. PHÂN TRANG DỮ LIỆU ĐÃ LỌC
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
-  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem); // Cắt mảng lấy đúng 10 phần tử
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
 
   const counts = {
     "Tất cả": requests.length,
@@ -167,7 +178,6 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* ── THÀNH PHẦN THANH PHÂN TRANG (PAGINATION UI) ── */}
       {filtered.length > ITEMS_PER_PAGE && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, padding: "0 4px" }}>
           <div style={{ fontSize: 13, color: "var(--text-sub)" }}>
