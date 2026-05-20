@@ -60,6 +60,26 @@ router.post("/register", async (req, res) => {
       [username, hashedPassword, actualFullName, email, actualPhone, finalRole, status, parsedDeptId]
     );
 
+    // 🔥 Bắn Socket thông báo có nhân sự mới đăng ký
+    try {
+      const io = req.app.get("socketio");
+      if (io) {
+        if (parsedDeptId) {
+          io.emit("new_user_registered", {
+            target_role: "MANAGER",
+            target_department: parsedDeptId,
+            message: `🔔 Phòng ban của bạn vừa có nhân sự mới đăng ký: ${actualFullName || username}!`
+          });
+        }
+        io.emit("new_user_registered", {
+          target_role: "SUPERADMIN",
+          message: `🔔 Có nhân sự mới đăng ký vào hệ thống: ${actualFullName || username}!`
+        });
+      }
+    } catch (err) {
+      console.error("Lỗi Socket khi đăng ký:", err);
+    }
+
     res.status(201).json({
       message: "Đăng ký thành công! Vui lòng chờ Trưởng phòng phê duyệt.",
       user: newUser.rows[0],

@@ -16,7 +16,7 @@ const MenuItem = ({ icon: Icon, label, badge, active, onClick }) => (
   </button>
 );
 
-const Sidebar = ({ pendingLeaves = 0 }) => {
+const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -77,7 +77,7 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
             <MenuItem icon={FaCoins} label="Tính lương" active={isActive("/admin/salary")} onClick={() => navigate("/admin/salary")} />
 
             <div className="menu-label">Quản trị</div>
-            <MenuItem icon={FaUsers} label="Quản lý nhân sự" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} />
+            <MenuItem icon={FaUsers} label="Quản lý nhân sự" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} badge={pendingUsers} />
             <MenuItem icon={FaBell} label="Thông báo chung" active={isActive("/admin/announcements")} onClick={() => navigate("/admin/announcements")} />
             <MenuItem icon={FaCog} label="Cài đặt" active={isActive("/admin/settings")} onClick={() => navigate("/admin/settings")} />
           </>
@@ -97,7 +97,7 @@ const Sidebar = ({ pendingLeaves = 0 }) => {
             <MenuItem icon={FaCalendarAlt} label="Duyệt nghỉ phép" active={isActive("/admin/leaves")} onClick={() => navigate("/admin/leaves")} badge={pendingLeaves} />
 
             <MenuItem icon={FaCalendarCheck} label="Lịch & Ca làm" active={isActive("/admin/schedule")} onClick={() => navigate("/admin/schedule")} />
-            <MenuItem icon={FaUsers} label="Nhân sự nhóm" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} />
+            <MenuItem icon={FaUsers} label="Nhân sự nhóm" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} badge={pendingUsers} />
           </>
         )}
 

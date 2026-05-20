@@ -10,6 +10,7 @@ const MainLayout = ({ children }) => {
   const [currentUser, setCurrentUser] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
   const fetchPendingCount = useCallback(async (userObj) => {
     if (!userObj || userObj.role === "STAFF" || !userObj.role) return;
@@ -22,6 +23,15 @@ const MainLayout = ({ children }) => {
       if (res.ok) {
         const data = await res.json();
         setPendingLeavesCount(data.count || 0); // Backend đã đếm sẵn, trả về bao nhiêu hiện bấy nhiêu
+      }
+
+      // Đếm số nhân sự mới chờ duyệt
+      const resUsers = await fetch("/api/auth_ser/users/pending-count", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (resUsers.ok) {
+        const dataUsers = await resUsers.json();
+        setPendingUsersCount(dataUsers.count || 0);
       }
     } catch (error) { console.error("Lỗi lấy số đếm:", error); }
   }, []);
@@ -63,6 +73,18 @@ const MainLayout = ({ children }) => {
       }
     });
 
+    // 3. NGHE TIẾNG GỌI: Có nhân sự mới đăng ký!
+    socket.on("new_user_registered", (data) => {
+      const isDirector = user.role === "SUPERADMIN" || user.role === "ADMIN";
+      if (data.target_role === "SUPERADMIN" && isDirector) {
+        fetchPendingCount(user);
+        if (data.message) toast.info(data.message);
+      } else if (data.target_role === "MANAGER" && user.role === "MANAGER" && String(data.target_department) === String(user.department_id)) {
+        fetchPendingCount(user);
+        if (data.message) toast.info(data.message);
+      }
+    });
+
     return () => socket.disconnect();
   }, [fetchPendingCount]);
 
@@ -75,7 +97,7 @@ const MainLayout = ({ children }) => {
 
   return (
     <div className="dashboard-container">
-      <Sidebar pendingLeaves={pendingLeavesCount} />
+      <Sidebar pendingLeaves={pendingLeavesCount} pendingUsers={pendingUsersCount} />
 
       <div className="main-content">
         <div className="top-header">
@@ -89,15 +111,15 @@ const MainLayout = ({ children }) => {
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
           >
             <FaBell size={15} />
-            {/* THÔNG BÁO ĐỎ CỦA CHUÔNG SẼ XUẤT HIỆN Ở ĐÂY NẾU pendingLeavesCount > 0 */}
-            {pendingLeavesCount > 0 && (
+            {/* THÔNG BÁO ĐỎ CỦA CHUÔNG */}
+            {(pendingLeavesCount + pendingUsersCount) > 0 && (
               <span style={{
                 position: "absolute", top: -6, right: -6, background: "#EF4444", color: "#fff",
                 fontSize: 10, fontWeight: "bold", minWidth: 16, height: 16, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
                 border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
               }}>
-                {pendingLeavesCount}
+                {pendingLeavesCount + pendingUsersCount}
               </span>
             )}
           </div>

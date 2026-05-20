@@ -59,6 +59,9 @@ const UserManagement = () => {
     fetchData();
     const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
     socket.on("new_leave_request", d => toast.info("🔔 " + d.message));
+    socket.on("new_user_registered", d => {
+      fetchData();
+    });
     return () => socket.disconnect();
   }, []);
 
@@ -134,8 +137,8 @@ const UserManagement = () => {
             <FaSearch size={14} />
             <input placeholder="Tìm mã NV, tên, email..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          {/* 🔥 Cả SUPERADMIN và MANAGER đều được thấy nút Thêm nhân sự */}
-          {(currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN" || currentUser.role === "MANAGER") && (
+          {/* 🔥 Chỉ SUPERADMIN và ADMIN được thấy nút Thêm nhân sự */}
+          {(currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN") && (
             <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
               <FaUserPlus size={12} /> Thêm nhân sự
             </button>
@@ -173,7 +176,7 @@ const UserManagement = () => {
                   <th>Lương cơ bản</th>
                   <th>Quỹ phép</th>
                   <th>Trạng thái</th>
-                  <th>Hành động</th>
+                  {currentUser.role === "SUPERADMIN" && <th>Hành động</th>}
                 </tr>
               </thead>
               <tbody>
@@ -211,29 +214,29 @@ const UserManagement = () => {
                         <span className="badge badge-red">Bị khóa / Xóa</span>
                       )}
                     </td>
-                    <td>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        {String(u.id) !== String(currentUser.id) && (
-                          <>
-                            {u.status === "PENDING_ADMIN" && currentUser.role === "MANAGER" && (
-                              <button className="btn btn-sm" style={{ background: "#22c55e", color: "#fff", border: "none" }} onClick={() => handleApprove(u.id)}>
-                                <FaCheck size={10} style={{ marginRight: 4 }} /> Duyệt
-                              </button>
-                            )}
-                            {currentUser.role === "SUPERADMIN" && (
+                    {currentUser.role === "SUPERADMIN" && (
+                      <td>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          {String(u.id) !== String(currentUser.id) && (
+                            <>
+                              {u.status === "PENDING_ADMIN" && (
+                                <button className="btn btn-sm" style={{ background: "#22c55e", color: "#fff", border: "none" }} onClick={() => handleApprove(u.id)}>
+                                  <FaCheck size={10} style={{ marginRight: 4 }} /> Duyệt
+                                </button>
+                              )}
                               <button className="btn btn-sm" style={{ background: "var(--bg-page)", border: "1px solid var(--border)", color: "var(--text)" }} onClick={() => openEditModal(u)}>
                                 <FaEdit size={12} /> Cài đặt
                               </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan="8" style={{ textAlign: "center", padding: 20, color: "var(--text-light)" }}>Không có dữ liệu nhân sự phù hợp.</td>
+                    <td colSpan={currentUser.role === "SUPERADMIN" ? 8 : 7} style={{ textAlign: "center", padding: 20, color: "var(--text-light)" }}>Không có dữ liệu nhân sự phù hợp.</td>
                   </tr>
                 )}
               </tbody>
@@ -257,9 +260,9 @@ const UserManagement = () => {
 const EditUserModal = ({ user, departments, token, onClose, onRefresh }) => {
   const [role, setRole] = useState(user.role || "STAFF");
   const [salary, setSalary] = useState(user.base_salary || 0);
+  const [departmentId, setDepartmentId] = useState(user.department_id || "");
+  const [maxLeaveDays, setMaxLeaveDays] = useState(user.max_leave_days || 12);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const currentDept = user.department_name || departments.find(d => String(d.id) === String(user.department_id))?.name || "Chưa phân bổ";
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -268,7 +271,12 @@ const EditUserModal = ({ user, departments, token, onClose, onRefresh }) => {
       const res = await fetch(`/api/auth_ser/users/${user.id}/hr-details`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ role, base_salary: salary })
+        body: JSON.stringify({
+          role: role,
+          base_salary: salary,
+          department_id: departmentId,
+          max_leave_days: maxLeaveDays
+        })
       });
       if (res.ok) {
         toast.success("Cập nhật hồ sơ nhân sự thành công!");
@@ -313,15 +321,16 @@ const EditUserModal = ({ user, departments, token, onClose, onRefresh }) => {
             </div>
             <div className="form-group">
               <label className="form-label">Phòng ban công tác</label>
-              <div style={{ padding: "12px 15px", background: "#F1F5F9", borderRadius: "8px", border: "1px solid #E2E8F0", color: "#64748B", fontWeight: 600 }}>
-                {currentDept} (Cố định)
-              </div>
+              <select className="form-control" value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
+                <option value="">-- Chưa phân bổ --</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Quỹ phép tiêu chuẩn</label>
-              <div style={{ padding: "12px 15px", background: "#F1F5F9", borderRadius: "8px", border: "1px solid #E2E8F0", color: "#64748B", fontWeight: 600 }}>
-                12 ngày / năm (Cố định)
-              </div>
+              <label className="form-label">Quỹ phép tiêu chuẩn (ngày/năm)</label>
+              <input className="form-control" type="number" value={maxLeaveDays} onChange={e => setMaxLeaveDays(e.target.value)} required />
             </div>
             <div className="form-group">
               <label className="form-label">Lương cơ bản (VND)</label>
@@ -332,6 +341,8 @@ const EditUserModal = ({ user, departments, token, onClose, onRefresh }) => {
               <select className="form-control" value={role} onChange={e => setRole(e.target.value)}>
                 <option value="STAFF">Nhân viên (STAFF)</option>
                 <option value="MANAGER">Quản lý (MANAGER)</option>
+                <option value="ADMIN">Quản trị viên (ADMIN)</option>
+                <option value="SUPERADMIN">Giám đốc (SUPERADMIN)</option>
               </select>
             </div>
           </div>
