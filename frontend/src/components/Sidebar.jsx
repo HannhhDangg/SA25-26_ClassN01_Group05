@@ -31,7 +31,6 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0 }) => {
     STAFF: "Nhân viên",
   }[role] || role;
 
-  // 🔥 ĐÃ FIX LỖI: SÁNG ĐÈN CHUẨN XÁC, KHÔNG BỊ SÁNG NHẦM NÚT CHA
   const isActive = (path) => {
     // Với các trang gốc hoặc trang cha (có trang con lồng bên trong), ta phải bắt buộc khớp chính xác 100%
     const exactPaths = ["/admin", "/employee", "/admin/leaves", "/employee/leaves"];
@@ -78,6 +77,7 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0 }) => {
 
             <div className="menu-label">Quản trị</div>
             <MenuItem icon={FaUsers} label="Quản lý nhân sự" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} badge={pendingUsers} />
+            {/* Đã có cho Superadmin */}
             <MenuItem icon={FaBell} label="Thông báo chung" active={isActive("/admin/announcements")} onClick={() => navigate("/admin/announcements")} />
             <MenuItem icon={FaCog} label="Cài đặt" active={isActive("/admin/settings")} onClick={() => navigate("/admin/settings")} />
           </>
@@ -98,6 +98,9 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0 }) => {
 
             <MenuItem icon={FaCalendarCheck} label="Lịch & Ca làm" active={isActive("/admin/schedule")} onClick={() => navigate("/admin/schedule")} />
             <MenuItem icon={FaUsers} label="Nhân sự nhóm" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} badge={pendingUsers} />
+
+            {/* 🔥 MỚI THÊM: Trạm thông báo cho MANAGER */}
+            <MenuItem icon={FaBell} label="Thông báo chung" active={isActive("/admin/announcements")} onClick={() => navigate("/admin/announcements")} />
           </>
         )}
 
@@ -111,6 +114,9 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0 }) => {
             <MenuItem icon={FaHistory} label="Lịch sử nghỉ phép" active={isActive("/employee/leaves/history")} onClick={() => navigate("/employee/leaves/history")} />
             <MenuItem icon={FaCalendarCheck} label="Lịch làm việc" active={isActive("/employee/schedule")} onClick={() => navigate("/employee/schedule")} />
             <MenuItem icon={FaCoins} label="Xem lương" active={isActive("/employee/salary")} onClick={() => navigate("/employee/salary")} />
+
+            {/* 🔥 MỚI THÊM: Hòm thư thông báo cho STAFF */}
+            <MenuItem icon={FaBell} label="Thông báo chung" active={isActive("/employee/announcements")} onClick={() => navigate("/employee/announcements")} />
           </>
         )}
       </div>
@@ -144,4 +150,4 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0 }) => {
   );
 };
 
-export default Sidebar;
+export default Sidebar; 

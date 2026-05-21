@@ -15,6 +15,9 @@ import EmployeeHome from "./pages/EmployeeHome";
 import CreateLeave from "./pages/CreateLeave";
 import LeaveHistory from "./pages/LeaveHistory";
 
+// 🔥 IMPORT TRANG THÔNG BÁO CHUNG MỚI
+import AnnouncementPage from "./pages/AnnouncementPage";
+
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
@@ -73,7 +76,6 @@ function App() {
           }
         />
 
-        {/* 🔥 ĐÃ THÊM: ROUTE LỊCH SỬ ĐƠN CỦA MANAGER ĐỂ HẾT BỊ TRẮNG TRANG */}
         <Route
           path="/admin/leaves/history"
           element={
@@ -91,6 +93,18 @@ function App() {
             <PrivateRoute>
               <MainLayout>
                 <UserManagement />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* 🔥 ROUTE THÔNG BÁO CHO QUẢN LÝ / GIÁM ĐỐC */}
+        <Route
+          path="/admin/announcements"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <AnnouncementPage />
               </MainLayout>
             </PrivateRoute>
           }
@@ -125,6 +139,18 @@ function App() {
             <PrivateRoute>
               <MainLayout>
                 <LeaveHistory />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* 🔥 ROUTE THÔNG BÁO CHO NHÂN VIÊN THƯỜNG */}
+        <Route
+          path="/employee/announcements"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <AnnouncementPage />
               </MainLayout>
             </PrivateRoute>
           }
