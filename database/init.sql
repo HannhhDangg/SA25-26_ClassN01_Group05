@@ -161,6 +161,32 @@ CREATE TABLE IF NOT EXISTS monthly_payrolls (
 );
 
 -- ==========================================
+-- PHẦN THÊM: QUẢN LÝ THÔNG BÁO CHUNG (ANNOUNCEMENTS)
+-- ==========================================
+
+-- Bảng lưu nội dung các thông báo được phát đi
+CREATE TABLE IF NOT EXISTS announcements (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    sender_id INT REFERENCES users(id) ON DELETE SET NULL, -- Người gửi
+    target_type VARCHAR(20) NOT NULL, -- Các loại: 'ALL', 'ROLE', 'DEPT_STAFF', 'INDIVIDUAL'
+    target_role VARCHAR(20),          -- Dành cho trường hợp target_type = 'ROLE' (VD: 'MANAGER')
+    department_id INT REFERENCES departments(id) ON DELETE CASCADE, -- Dành cho target_type = 'DEPT_STAFF'
+    target_email VARCHAR(100),        -- Dành cho target_type = 'INDIVIDUAL'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Bảng lưu trạng thái "Đã đọc" của từng nhân viên đối với từng thông báo
+CREATE TABLE IF NOT EXISTS announcement_reads (
+    announcement_id INT REFERENCES announcements(id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (announcement_id, user_id) -- Một người chỉ có 1 trạng thái đọc cho 1 thông báo
+);
+
+
+-- ==========================================
 -- PHẦN 5: DỮ LIỆU KHỞI TẠO (SEED DATA)
 -- ==========================================
 

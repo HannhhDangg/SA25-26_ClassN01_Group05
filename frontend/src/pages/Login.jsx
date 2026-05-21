@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBuilding, FaArrowRight, FaCheck, FaClock, FaCalendarAlt, FaCoins, FaShieldAlt } from "react-icons/fa";
 import OtpInput from "../components/OtpInput";
@@ -70,36 +70,13 @@ const Login = () => {
   const [mode, setMode] = useState("login");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Bổ sung department_id vào State
+  // 🔥 Form gọn gàng: Không còn department_id
   const [formData, setFormData] = useState({
     username: "", password: "",
-    fullName: "", email: "", phone: "", role: "STAFF",
-    department_id: "" // Mới thêm
+    fullName: "", email: "", phone: "", role: "STAFF"
   });
 
-  // ✅ State lưu danh sách phòng ban và trạng thái xác nhận
-  const [departments, setDepartments] = useState([]);
-  const [isConfirmed, setIsConfirmed] = useState(false);
-
   const set = (field) => (e) => setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-
-  // ✅ Gọi API lấy danh sách phòng ban khi ở chế độ Đăng ký
-  useEffect(() => {
-    if (mode === "register") {
-      fetch("/api/auth_ser/departments")
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            // 🔥 LỌC BỎ BAN GIÁM ĐỐC: Loại trừ phòng ban có ID = 1
-            const publicDepartments = data.filter(d => parseInt(d.id) !== 1);
-            setDepartments(publicDepartments);
-          } else {
-            setDepartments([]);
-          }
-        })
-        .catch(err => console.error("Lỗi tải phòng ban:", err));
-    }
-  }, [mode]);
 
   // ── Đăng nhập ────────────────────────────────────────────
   const handleLogin = async (e) => {
@@ -133,9 +110,10 @@ const Login = () => {
   // ── Bước 1: Gửi OTP ──────────────────────────────────────
   const handleRequestOtp = async (e) => {
     e.preventDefault();
-    // ✅ Kiểm tra bảo mật form Đăng ký
-    if (!formData.department_id || !isConfirmed) {
-      alert("Vui lòng chọn phòng ban và tích xác nhận!");
+
+    // Validate cơ bản
+    if (!formData.fullName || !formData.username || !formData.email || !formData.password) {
+      alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
       return;
     }
 
@@ -166,7 +144,7 @@ const Login = () => {
       const res = await fetch("/api/auth_ser/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData), // Lúc này formData đã có sẵn department_id
+        body: JSON.stringify(formData),
       });
       const data = await res.json();
       if (res.ok) {
@@ -182,8 +160,7 @@ const Login = () => {
   };
 
   const resetForm = () => {
-    setFormData({ username: "", password: "", fullName: "", email: "", phone: "", role: "STAFF", department_id: "" });
-    setIsConfirmed(false);
+    setFormData({ username: "", password: "", fullName: "", email: "", phone: "", role: "STAFF" });
     setMode("login");
   };
 
@@ -236,9 +213,9 @@ const Login = () => {
             <div className="login-form-title">Tạo tài khoản mới</div>
             <div className="login-form-sub" style={{ marginBottom: 18 }}>Điền đầy đủ thông tin để tiếp tục</div>
 
-            {/* Thêm style để form có thể scroll nếu màn hình nhỏ */}
             <div style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "5px" }} className="custom-scrollbar">
               <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column" }}>
+
                 <label className="form-label">Họ và tên <span style={{ color: "#DC2626" }}>*</span></label>
                 <input className="login-input" placeholder="VD: Nguyễn Văn An" value={formData.fullName} onChange={set("fullName")} required />
 
@@ -262,39 +239,9 @@ const Login = () => {
                 <label className="form-label">Mật khẩu <span style={{ color: "#DC2626" }}>*</span></label>
                 <input className="login-input" type="password" placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={set("password")} required minLength={8} />
 
-                {/* ✅ KHU VỰC CHỌN PHÒNG BAN MỚI THÊM */}
-                <label className="form-label">Phòng ban công tác <span style={{ color: "#DC2626" }}>*</span></label>
-                <select
-                  className="login-input"
-                  value={formData.department_id}
-                  onChange={set("department_id")}
-                  required
-                  style={{ cursor: "pointer", color: formData.department_id ? "inherit" : "#94A3B8" }}
-                >
-                  <option value="">-- Vui lòng chọn phòng ban --</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} {d.manager_name ? `(QL: ${d.manager_name})` : ""}</option>
-                  ))}
-                </select>
+                {/* Đã xóa hoàn toàn phần chọn phòng ban và Checkbox */}
 
-                {/* ✅ CHECKBOX XÁC NHẬN */}
-                {formData.department_id && (
-                  <div style={{ marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start", background: "#FEF2F2", padding: "12px", borderRadius: 8, border: "1px dashed #F87171" }}>
-                    <input
-                      type="checkbox"
-                      id="confirmDept"
-                      required
-                      checked={isConfirmed}
-                      onChange={(e) => setIsConfirmed(e.target.checked)}
-                      style={{ marginTop: 4, transform: "scale(1.2)", cursor: "pointer", flexShrink: 0 }}
-                    />
-                    <label htmlFor="confirmDept" style={{ fontSize: 13.5, color: "#991B1B", cursor: "pointer", lineHeight: 1.4, margin: 0 }}>
-                      <strong>Tôi xác nhận:</strong> Đây đúng là Phòng ban và Quản lý trực tiếp của tôi. Nếu chọn sai, tài khoản sẽ bị từ chối phê duyệt.
-                    </label>
-                  </div>
-                )}
-
-                <button type="submit" className="login-btn" disabled={loading || !formData.department_id || !isConfirmed}>
+                <button type="submit" className="login-btn" disabled={loading} style={{ marginTop: 10 }}>
                   {loading ? "Đang gửi OTP..." : <>{`Tiếp tục — Nhận mã OTP`} <FaArrowRight size={12} /></>}
                 </button>
               </form>

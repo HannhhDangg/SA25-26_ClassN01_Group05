@@ -57,6 +57,9 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+    volumes:
+      - ./auth_service:/app
+      - /app/node_modules
     depends_on:
       haproxy:
         condition: service_started
@@ -85,6 +88,7 @@ services:
     volumes:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
+      - /app/node_modules
     depends_on:
       haproxy:
         condition: service_started
