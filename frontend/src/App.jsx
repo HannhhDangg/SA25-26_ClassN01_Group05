@@ -1,26 +1,27 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
-// --- 1. IMPORT TOASTIFY ---
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// --------------------------
 
 import MainLayout from "./components/Mainlayout";
 import Login from "./pages/Login";
 
-// Import các trang
 import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import AdminHome from "./pages/AdminHome";
 import EmployeeHome from "./pages/EmployeeHome";
 import Attendance from "./pages/Attendance";
 
-// Cập nhật import 2 file mới thay cho LeavePage
 import CreateLeave from "./pages/CreateLeave";
 import LeaveHistory from "./pages/LeaveHistory";
 
-// Component bảo vệ Route
+// IMPORT TRANG THÔNG BÁO CHUNG MỚI
+import AnnouncementPage from "./pages/AnnouncementPage";
+
+//trang lịch và ca làm
+import SchedulePage from "./pages/SchedulePage";
+
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
@@ -29,7 +30,6 @@ const PrivateRoute = ({ children }) => {
 function App() {
   return (
     <BrowserRouter>
-      {/* --- 2. CẤU HÌNH KHUNG THÔNG BÁO --- */}
       <ToastContainer
         position="top-right"
         autoClose={4000}
@@ -42,13 +42,12 @@ function App() {
         pauseOnHover
         theme="colored"
       />
-      {/* ----------------------------------- */}
 
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
 
-        {/* === ADMIN ROUTES === */}
+        {/* === ADMIN ROUTES (Dành cho SUPERADMIN & MANAGER) === */}
         <Route
           path="/admin"
           element={
@@ -69,6 +68,29 @@ function App() {
             </PrivateRoute>
           }
         />
+
+        <Route
+          path="/admin/leaves/new"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <CreateLeave />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/admin/leaves/history"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <LeaveHistory />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
         <Route
           path="/admin/users"
           element={
@@ -80,7 +102,30 @@ function App() {
           }
         />
 
-        {/* === EMPLOYEE ROUTES === */}
+        <Route
+          path="/admin/schedule"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <SchedulePage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* 🔥 ROUTE THÔNG BÁO CHO QUẢN LÝ / GIÁM ĐỐC */}
+        <Route
+          path="/admin/announcements"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <AnnouncementPage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* === EMPLOYEE ROUTES (Dành cho STAFF) === */}
         <Route
           path="/employee"
           element={
@@ -113,13 +158,35 @@ function App() {
           }
         />
 
-        {/* Trang Xem lịch sử nghỉ phép */}
         <Route
           path="/employee/leaves/history"
           element={
             <PrivateRoute>
               <MainLayout>
                 <LeaveHistory />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* 🔥 ROUTE THÔNG BÁO CHO NHÂN VIÊN THƯỜNG */}
+        <Route
+          path="/employee/announcements"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <AnnouncementPage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/employee/schedule"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <SchedulePage />
               </MainLayout>
             </PrivateRoute>
           }

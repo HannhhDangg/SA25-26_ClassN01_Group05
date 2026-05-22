@@ -57,10 +57,18 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+    volumes:
+      - ./auth_service:/app
+      - /app/node_modules
     depends_on:
-      - haproxy
-      - mongo-init
-      - redis
+      haproxy:
+        condition: service_started
+      postgres-1:
+        condition: service_healthy # 🔥 Ép Auth Service đợi DB khởi tạo xong hoàn toàn
+      mongo-init:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - app-network
 
@@ -80,10 +88,18 @@ services:
     volumes:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
+<<<<<<< HEAD
       - /app/node_modules // do máy đạt chưa chạy npm install nên node_modules chưa có, tạo volume để tránh lỗi
+=======
+      - /app/node_modules
+>>>>>>> 3e3137ab30e1b271efd059ccf6918c0b64c0d4e3
     depends_on:
-      - haproxy
-      - mongo-init
+      haproxy:
+        condition: service_started
+      postgres-1:
+        condition: service_healthy # 🔥 Ép Leave Service đợi DB khởi tạo xong hoàn toàn
+      mongo-init:
+        condition: service_started
     networks:
       - app-network
 
@@ -144,6 +160,12 @@ services:
       - "5432"
     depends_on:
       - etcd
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -p 5432" ] # 🔥 Kiểm tra cổng DB sẵn sàng nhận kết nối chưa
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s # 🔥 Tăng thời gian chờ khởi động DB vì Spilo có thể mất thời gian để thiết lập cluster
     networks:
       - app-network
 

@@ -30,10 +30,8 @@ const StepBar = ({ current }) => {
 };
 
 // ─── Cột trái Brand Panel ────────────────────────────────────
-// Hiển thị logo + tagline + 4 tính năng nổi bật
 const BrandPanel = () => (
   <div className="login-left">
-    {/* Logo */}
     <div className="login-brand">
       <div className="login-brand-icon"><FaBuilding size={22} /></div>
       <div>
@@ -41,13 +39,9 @@ const BrandPanel = () => (
         <div className="login-brand-sub">Hệ thống quản lý nhân sự</div>
       </div>
     </div>
-
-    {/* Tagline */}
     <p className="login-tagline">
       Nền tảng quản lý nhân sự tập trung, hiện đại và dễ sử dụng cho doanh nghiệp.
     </p>
-
-    {/* 4 tính năng */}
     <div className="login-features">
       <div className="login-feature">
         <div className="login-feature-icon"><FaClock size={15} /></div>
@@ -73,12 +67,13 @@ const BrandPanel = () => (
 const Login = () => {
   const navigate = useNavigate();
 
-  // mode: "login" | "register" | "otp" | "success"
   const [mode, setMode] = useState("login");
   const [loading, setLoading] = useState(false);
+
+  // 🔥 Form gọn gàng: Không còn department_id
   const [formData, setFormData] = useState({
     username: "", password: "",
-    fullName: "", email: "", phone: "", role: "STAFF",
+    fullName: "", email: "", phone: "", role: "STAFF"
   });
 
   const set = (field) => (e) => setFormData((prev) => ({ ...prev, [field]: e.target.value }));
@@ -115,6 +110,13 @@ const Login = () => {
   // ── Bước 1: Gửi OTP ──────────────────────────────────────
   const handleRequestOtp = async (e) => {
     e.preventDefault();
+
+    // Validate cơ bản
+    if (!formData.fullName || !formData.username || !formData.email || !formData.password) {
+      alert("Vui lòng điền đầy đủ các thông tin bắt buộc (*)");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/otp/send-otp", {
@@ -164,10 +166,7 @@ const Login = () => {
 
   return (
     <div className="login-page">
-      {/* ── Cột trái: Brand ──────────────────────────────── */}
       <BrandPanel />
-
-      {/* ── Cột phải: Form ───────────────────────────────── */}
       <div className="login-right">
 
         {/* ══ ĐĂNG NHẬP ══ */}
@@ -214,36 +213,41 @@ const Login = () => {
             <div className="login-form-title">Tạo tài khoản mới</div>
             <div className="login-form-sub" style={{ marginBottom: 18 }}>Điền đầy đủ thông tin để tiếp tục</div>
 
-            <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column" }}>
-              <label className="form-label">Họ và tên <span style={{ color: "#DC2626" }}>*</span></label>
-              <input className="login-input" placeholder="VD: Nguyễn Văn An" value={formData.fullName} onChange={set("fullName")} required />
+            <div style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "5px" }} className="custom-scrollbar">
+              <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column" }}>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label className="form-label">Tên đăng nhập <span style={{ color: "#DC2626" }}>*</span></label>
-                  <input className="login-input" style={{ marginBottom: 0 }} placeholder="VD: nguyenvanan" value={formData.username} onChange={set("username")} required />
+                <label className="form-label">Họ và tên <span style={{ color: "#DC2626" }}>*</span></label>
+                <input className="login-input" placeholder="VD: Nguyễn Văn An" value={formData.fullName} onChange={set("fullName")} required />
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                  <div>
+                    <label className="form-label">Tên đăng nhập <span style={{ color: "#DC2626" }}>*</span></label>
+                    <input className="login-input" style={{ marginBottom: 0 }} placeholder="VD: nguyenvanan" value={formData.username} onChange={set("username")} required />
+                  </div>
+                  <div>
+                    <label className="form-label">Số điện thoại</label>
+                    <input className="login-input" style={{ marginBottom: 0 }} placeholder="0901 234 567" value={formData.phone} onChange={set("phone")} />
+                  </div>
                 </div>
-                <div>
-                  <label className="form-label">Số điện thoại</label>
-                  <input className="login-input" style={{ marginBottom: 0 }} placeholder="0901 234 567" value={formData.phone} onChange={set("phone")} />
-                </div>
-              </div>
 
-              <label className="form-label">
-                Email <span style={{ color: "#DC2626" }}>*</span>
-                <span style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 400 }}> — dùng để nhận mã OTP</span>
-              </label>
-              <input className="login-input" type="email" placeholder="email@congty.vn" value={formData.email} onChange={set("email")} required />
+                <label className="form-label">
+                  Email <span style={{ color: "#DC2626" }}>*</span>
+                  <span style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 400 }}> — dùng để nhận mã OTP</span>
+                </label>
+                <input className="login-input" type="email" placeholder="email@congty.vn" value={formData.email} onChange={set("email")} required />
 
-              <label className="form-label">Mật khẩu <span style={{ color: "#DC2626" }}>*</span></label>
-              <input className="login-input" type="password" placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={set("password")} required minLength={8} />
+                <label className="form-label">Mật khẩu <span style={{ color: "#DC2626" }}>*</span></label>
+                <input className="login-input" type="password" placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={set("password")} required minLength={8} />
 
-              <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Đang gửi OTP..." : <>{`Tiếp tục — Nhận mã OTP`} <FaArrowRight size={12} /></>}
-              </button>
-            </form>
+                {/* Đã xóa hoàn toàn phần chọn phòng ban và Checkbox */}
 
-            <div className="login-switch">
+                <button type="submit" className="login-btn" disabled={loading} style={{ marginTop: 10 }}>
+                  {loading ? "Đang gửi OTP..." : <>{`Tiếp tục — Nhận mã OTP`} <FaArrowRight size={12} /></>}
+                </button>
+              </form>
+            </div>
+
+            <div className="login-switch" style={{ marginTop: 15 }}>
               Đã có tài khoản? <span onClick={() => setMode("login")}>Đăng nhập</span>
             </div>
           </>

@@ -10,8 +10,9 @@ const mongoose = require("mongoose");
 
 // Import routes
 const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/users"); // Thêm dòng này
+const userRoutes = require("./routes/users");
 const otpRoute = require("./routes/otp");
+const departmentRoutes = require("./routes/departments"); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY
 
 const app = express();
 const server = http.createServer(app);
@@ -19,6 +20,7 @@ const server = http.createServer(app);
 const port = process.env.PORT || 3000;
 const redisHost = process.env.REDIS_HOST || "redis";
 const redisPort = process.env.REDIS_PORT || 6379;
+const announcementRoutes = require("./routes/announcements");
 
 // --- CẤU HÌNH SOCKET.IO ---
 const io = new Server(server, {
@@ -49,11 +51,10 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- SỬ DỤNG ROUTES CHUẨN XÁC ---
 app.use("/api/auth_ser", authRoutes);
-
-// ✅ QUAN TRỌNG: Đặt users nằm sau /api/auth_ser để lọt qua Gateway
 app.use("/api/auth_ser/users", userRoutes);
-
 app.use("/api/otp", otpRoute);
+app.use("/api/auth_ser/departments", departmentRoutes); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY ĐỂ KÍCH HOẠT API
+app.use("/api/auth_ser/announcements", announcementRoutes);
 
 // --- KẾT NỐI MONGODB ---
 const mongoURI = process.env.MONGO_URI || "mongodb://db-mongo:27017/leave_logs";

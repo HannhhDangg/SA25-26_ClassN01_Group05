@@ -2,41 +2,145 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { toast } from "react-toastify";
-import { FaUsers, FaCalendarTimes, FaClipboardCheck, FaFileAlt, FaCheck, FaTimes, FaExclamationTriangle } from "react-icons/fa";
+import { FaUsers, FaCalendarTimes, FaClipboardCheck, FaFileAlt, FaCheck, FaTimes, FaExclamationTriangle, FaUserTie } from "react-icons/fa";
 
 const AdminHome = () => {
   const navigate = useNavigate();
   const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}"));
+  const token = localStorage.getItem("token");
+
+  // State cho phần Quản lý
   const [stats, setStats] = useState({ totalUsers: 0, absentToday: 0, checkedIn: 0, pendingLeaves: 0 });
   const [pending, setPending] = useState([]);
   const [loadingPending, setLoadingPending] = useState(true);
-
-  // State lưu ca làm (Hiện tại rỗng vì chưa kéo từ DB)
   const [shifts, setShifts] = useState([]);
 
-  const fetchStats = () =>
-    fetch("/api/leave_ser/stats/admin-summary").then(r => r.json()).then(d => setStats(d)).catch(() => { });
+  // State Dành cho thông tin cá nhân của Manager
+  const [myProfile, setMyProfile] = useState(null);
+  const [myLeaves, setMyLeaves] = useState([]);
 
-  const fetchPending = () => {
+  // 🔥 1. GỘP CHUNG HÀM LẤY VÀ TÍNH TOÁN 4 CHỈ SỐ THEO ĐÚNG QUY TẮC
+  const fetchDashboardData = async () => {
     setLoadingPending(true);
-    // Bắt buộc Backend trả về mảng, ta sẽ tự lọc tiếp ở Frontend để chắc chắn 100%
-    fetch("/api/leave_ser?status=PENDING")
-      .then(r => r.json())
-      .then(d => {
-        // Lọc TẤT CẢ những đơn không phải PENDING ra khỏi danh sách
-        const filteredPending = Array.isArray(d) ? d.filter(item => item.status === "PENDING").slice(0, 5) : [];
-        setPending(filteredPending);
-      })
-      .catch(() => { })
-      .finally(() => setLoadingPending(false));
+    try {
+      const headers = { "Authorization": `Bearer ${token}` };
+
+      // Gọi API lấy toàn bộ dữ liệu (Users, Đơn phép, Thống kê cũ)
+      const [resUsers, resLeaves, resStats] = await Promise.all([
+        fetch("/api/auth_ser/users", { headers }),
+        fetch("/api/leave_ser", { headers }),
+        fetch("/api/leave_ser/stats/admin-summary", { headers })
+      ]);
+
+      const allUsers = resUsers.ok ? await resUsers.json() : [];
+      const allLeaves = resLeaves.ok ? await resLeaves.json() : [];
+      const backendStats = resStats.ok ? await resStats.json() : {};
+
+      // LỌC NGHIÊM NGẶT THEO QUY TẮC PHÒNG BAN
+      const isSuperAdmin = user.role === "SUPERADMIN" || user.role === "ADMIN";
+      const isManager = user.role === "MANAGER";
+
+      const validUsers = Array.isArray(allUsers) ? allUsers.filter(u => {
+        if (isSuperAdmin) return true; // Giám đốc: Thấy tất cả
+        if (isManager) {
+          // Trưởng phòng: Thấy bản thân HOẶC người cùng phòng
+          return String(u.id) === String(user.id) || (u.department_id && String(u.department_id) === String(user.department_id));
+        }
+        return String(u.id) === String(user.id);
+      }) : [];
+
+      // Lấy danh sách ID hợp lệ để lọc đơn nghỉ phép
+      const validUserIds = validUsers.map(u => String(u.id));
+      const validLeaves = Array.isArray(allLeaves) ? allLeaves.filter(l => validUserIds.includes(String(l.user_id))) : [];
+
+      // TÍNH TOÁN 4 CON SỐ HIỂN THỊ
+      const totalUsers = validUsers.length;
+
+      // Đếm Vắng hôm nay
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let absentToday = 0;
+      validLeaves.forEach(l => {
+        if (l.status === "APPROVED") {
+          const start = new Date(l.start_date); start.setHours(0, 0, 0, 0);
+          const end = new Date(l.end_date); end.setHours(23, 59, 59, 999);
+          if (today >= start && today <= end) absentToday++;
+        }
+      });
+
+      // 🔥 LỌC CHỜ DUYỆT CHUẨN QUY TẮC HỆ THỐNG:
+      const pendingList = validLeaves.filter(l => {
+        if (l.status !== "PENDING") return false;
+
+        const leaveOwner = validUsers.find(u => String(u.id) === String(l.user_id));
+        if (!leaveOwner) return false;
+
+        if (isSuperAdmin) {
+          // Giám đốc CHỈ thấy đơn của Trưởng phòng (MANAGER)
+          return leaveOwner.role === "MANAGER";
+        }
+        if (isManager) {
+          // Trưởng phòng CHỈ thấy đơn của nhân viên phòng mình (Tuyệt đối không lấy đơn của chính mình)
+          return String(leaveOwner.id) !== String(user.id);
+        }
+        return false;
+      });
+
+      setPending(pendingList.slice(0, 5));
+
+      setStats({
+        totalUsers: totalUsers,
+        absentToday: absentToday,
+        checkedIn: backendStats.checkedIn || 0,
+        pendingLeaves: pendingList.length
+      });
+
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu dashboard:", error);
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
+  // 🔥 2. API Lấy thông tin cá nhân (Chỉ lấy nếu là MANAGER)
+  const fetchMyPersonalData = async () => {
+    // Nếu là SUPERADMIN thì chặn đứng, không cần gọi API mất công
+    if (user.role === "SUPERADMIN" || user.role === "ADMIN") return;
+
+    try {
+      const userRes = await fetch("/api/auth_ser/users", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (userRes.ok) {
+        const usersList = await userRes.json();
+        const me = usersList.find(u => String(u.id) === String(user.id));
+        if (me) setMyProfile(me);
+      }
+
+      const leaveRes = await fetch(`/api/leave_ser/${user.id}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (leaveRes.ok) {
+        const leavesData = await leaveRes.json();
+        setMyLeaves(leavesData);
+      }
+    } catch (e) {
+      console.error("Lỗi lấy dữ liệu cá nhân:", e);
+    }
   };
 
   useEffect(() => {
-    fetchStats(); fetchPending();
+    fetchDashboardData();
+    fetchMyPersonalData();
+
     const socket = io("/", { transports: ["websocket", "polling"], upgrade: true });
     socket.on("new_leave_request", data => {
-      toast.info("🔔 " + data.message);
-      fetchStats(); fetchPending();
+      fetchDashboardData();
+    });
+    // Lắng nghe thêm việc đơn bị đổi trạng thái để load lại lịch sử cá nhân (nếu là manager)
+    socket.on("leave_status_update", data => {
+      fetchDashboardData();
+      fetchMyPersonalData();
     });
     return () => socket.disconnect();
   }, []);
@@ -46,18 +150,17 @@ const AdminHome = () => {
     try {
       const res = await fetch(`/api/leave_ser/${id}/status`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ status })
       });
 
       if (res.ok) {
         toast.success(`Đã ${status === "APPROVED" ? "duyệt" : "từ chối"} thành công!`);
-
-        // CẬP NHẬT LẠC QUAN: Xóa ngay đơn vừa duyệt khỏi màn hình
         setPending(prevPending => prevPending.filter(req => req.id !== id));
-
-        // Gọi lại thống kê
-        fetchStats();
+        fetchDashboardData();
       } else {
         toast.error("Lỗi xử lý từ Server!");
       }
@@ -72,7 +175,7 @@ const AdminHome = () => {
     { label: "Tổng nhân sự", value: stats.totalUsers, sub: "Đang hoạt động", color: "#1C3FAA", bg: "#EEF2FF", icon: <FaUsers /> },
     { label: "Vắng hôm nay", value: stats.absentToday, sub: "Đang nghỉ phép", color: "#B91C1C", bg: "#FEE2E2", icon: <FaCalendarTimes /> },
     { label: "Đã chấm công", value: stats.checkedIn || 0, sub: "Hôm nay", color: "#059669", bg: "#D1FAE5", icon: <FaClipboardCheck /> },
-    { label: "Chờ duyệt", value: stats.pendingLeaves || pending.length, sub: "Đơn nghỉ phép", color: "#B45309", bg: "#FEF3C7", icon: <FaFileAlt /> },
+    { label: "Chờ duyệt", value: stats.pendingLeaves, sub: "Đơn nghỉ phép", color: "#B45309", bg: "#FEF3C7", icon: <FaFileAlt /> },
   ];
 
   return (
@@ -100,7 +203,7 @@ const AdminHome = () => {
             <button className="btn btn-sm" onClick={() => navigate("/admin/leaves")}>Xem tất cả →</button>
           </div>
           {loadingPending ? <div style={{ padding: 20, textAlign: "center", color: "var(--text-light)" }}>Đang tải...</div> : (
-            <div className="table-wrap-scroll">
+            <div className="table-wrap-scroll" style={{ maxHeight: 300 }}>
               <table>
                 <thead><tr><th>Nhân viên</th><th>Thời gian</th><th>Trạng thái</th><th></th></tr></thead>
                 <tbody>
@@ -166,7 +269,72 @@ const AdminHome = () => {
           )}
         </div>
       </div>
+
+      {/* 🔥 CHỈ HIỂN THỊ KHU VỰC NÀY NẾU LÀ MANAGER 🔥 */}
+      {user.role === "MANAGER" && (
+        <div className="two-col" style={{ marginTop: 20 }}>
+          <div className="card">
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 16, display: "flex", alignItems: "center", gap: 7 }}>
+              <FaUserTie style={{ color: "var(--primary)" }} /> Hồ sơ cá nhân của tôi
+            </div>
+
+            <div style={{ display: "flex", gap: 15 }}>
+              <div style={{ flex: 1, padding: "16px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #E2E8F0" }}>
+                <div style={{ fontSize: 12, color: "var(--text-sub)", fontWeight: 500 }}>Lương cơ bản</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--primary)", marginTop: 6 }}>
+                  {myProfile?.base_salary ? Number(myProfile.base_salary).toLocaleString("vi-VN") + " ₫" : "Chưa thiết lập"}
+                </div>
+              </div>
+
+              <div style={{ flex: 1, padding: "16px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #E2E8F0" }}>
+                <div style={{ fontSize: 12, color: "var(--text-sub)", fontWeight: 500 }}>Quỹ phép tiêu chuẩn</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--primary)", marginTop: 6 }}>
+                  {myProfile?.max_leave_days || 12} <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-light)" }}>ngày / năm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex-between" style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: 7 }}>
+                <FaFileAlt style={{ color: "var(--primary)" }} /> Lịch sử đơn của tôi
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => navigate("/admin/leaves/new")}>
+                + Tạo đơn mới
+              </button>
+            </div>
+
+            <div className="table-wrap-scroll" style={{ maxHeight: 150, border: "1px solid var(--border)", borderRadius: 8 }}>
+              {myLeaves.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-light)", fontSize: 13 }}>
+                  Bạn chưa gửi đơn nghỉ phép nào.
+                </div>
+              ) : (
+                <table style={{ width: "100%", textAlign: "left", fontSize: 13, borderCollapse: "collapse" }}>
+                  <tbody>
+                    {myLeaves.map((req, idx) => (
+                      <tr key={req.id} style={{ borderBottom: idx !== myLeaves.length - 1 ? "1px solid #E2E8F0" : "none" }}>
+                        <td style={{ padding: "10px 12px", fontWeight: 500, color: "var(--text)" }}>
+                          {new Date(req.start_date).toLocaleDateString("vi-VN")} - {new Date(req.end_date).toLocaleDateString("vi-VN")}
+                        </td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-sub)" }}>{req.total_days} ngày</td>
+                        <td style={{ padding: "10px 12px", textAlign: "right" }}>
+                          {req.status === "APPROVED" ? <span className="badge badge-green">Đã duyệt</span> :
+                            req.status === "REJECTED" ? <span className="badge badge-red">Từ chối</span> :
+                              <span className="badge badge-amber">Chờ duyệt</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 export default AdminHome;
