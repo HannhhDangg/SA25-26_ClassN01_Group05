@@ -65,6 +65,11 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
+  // Kiểm tra dữ liệu đầu vào, tránh lỗi undefined ở hàm bcrypt gây sập server
+  if (!username || !password) {
+    return res.status(400).json({ message: "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!" });
+  }
+
   try {
     // 1. Lấy TẤT CẢ thông tin user
     const result = await pool.query("SELECT * FROM users WHERE username = $1", [

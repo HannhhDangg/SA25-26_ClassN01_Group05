@@ -8,7 +8,7 @@ services:
         config:
           minute: 10 # Cực kỳ quan trọng: Chỉ cho phép 1 IP gọi API Auth/OTP 10 lần/phút
           limit_by: ip
-          policy: locals
+          policy: local
     routes:
       - name: auth-routes
         paths:
@@ -31,4 +31,24 @@ services:
           - /api/users
           - /uploads
           - /socket.io
+        strip_path: false
+
+  - name: attendance-service
+    url: http://attendance_service:3000
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60
+          limit_by: ip
+          policy: local
+    routes:
+      - name: attendance-routes
+        paths:
+          - /api/attendance
+          # Vì vậy thêm cả /api/attendance/ giúp bao luôn trường hợp có hoặc không có dấu slash, và các subpath phía sau. -> route chính
+          - /api/attendance/    
+          # /api/attendance/ : request đi tới /api/attendance/generate-code  -> tránh sai khi có slash thừa/ thiếu
+          - /api/attendance_ser
+          - /api/attendance_ser/
+          # /api/attendance_ser và /api/attendance_ser/ → tương thích cũ
         strip_path: false

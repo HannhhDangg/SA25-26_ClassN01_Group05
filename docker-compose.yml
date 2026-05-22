@@ -80,17 +80,37 @@ services:
     volumes:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
+      - /app/node_modules // do máy đạt chưa chạy npm install nên node_modules chưa có, tạo volume để tránh lỗi
     depends_on:
       - haproxy
       - mongo-init
     networks:
       - app-network
 
+  attendance_service:
+    build: ./attendance_service
+    restart: always
+    environment:
+      - PORT=3000
+      - DB_HOST=haproxy
+      - DB_PORT=5000
+      - DB_USER=postgres
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=postgres
+      - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
+      - REDIS_HOST=redis
+      - JWT_SECRET=secret_key_cua_ban
+    depends_on:
+      - haproxy
+      - mongo-init
+      - redis
+    networks:
+      - app-network
   frontend:
     build: ./frontend
     environment:
       # SỬA LẠI: URL API phải trỏ về Nginx (cổng 80) hoặc trực tiếp Kong nếu Nginx lỗi
-      - REACT_APP_API_URL=http://localhost:80
+      - VITE_APP_API_URL=http://localhost:80
     # XÓA DÒNG "command: ..." cũ đi, vì file vite.config.js đã tự lo rồi
     ports:
       - "3000:3000"

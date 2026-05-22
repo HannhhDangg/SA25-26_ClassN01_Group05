@@ -56,31 +56,18 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 );
 
 -- ==========================================
--- PHẦN 2: CHẤM CÔNG BẰNG GPS & BSSID/IP
+-- PHẦN 2: CHẤM CÔNG BẰNG MÃ OTP & DEVICE ID
 -- ==========================================
-
-CREATE TABLE IF NOT EXISTS office_locations (
-    id SERIAL PRIMARY KEY,
-    office_name VARCHAR(100) NOT NULL,
-    latitude DECIMAL(10, 8),      
-    longitude DECIMAL(11, 8),     
-    allowed_radius INT DEFAULT 50, 
-    allowed_bssid VARCHAR(50),    
-    allowed_ip VARCHAR(50),       
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TABLE IF NOT EXISTS attendance_logs (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id) ON DELETE CASCADE,
     work_date DATE NOT NULL DEFAULT CURRENT_DATE,
     check_in_time TIMESTAMP,
-    check_in_ip VARCHAR(50),
-    check_in_location VARCHAR(255), 
-    check_out_time TIMESTAMP,
-    check_out_ip VARCHAR(50),       
-    check_out_location VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'ON_TIME', 
+    check_in_device_id VARCHAR(255),
+    check_out_time TIMESTAMP,     
+    check_out_device_id VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'Chưa Vào Làm', 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, work_date) 
 );

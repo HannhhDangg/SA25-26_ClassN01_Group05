@@ -14,6 +14,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import AdminHome from "./pages/AdminHome";
 import EmployeeHome from "./pages/EmployeeHome";
+import Attendance from "./pages/Attendance";
 
 // Cập nhật import 2 file mới thay cho LeavePage
 import CreateLeave from "./pages/CreateLeave";
@@ -90,7 +91,16 @@ function App() {
             </PrivateRoute>
           }
         />
-
+        <Route
+          path="/employee/attendance"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <Attendance/>
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
         {/* Trang Tạo đơn xin nghỉ phép */}
         <Route
           path="/employee/leaves/new"
