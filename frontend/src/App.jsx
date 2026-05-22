@@ -15,8 +15,11 @@ import EmployeeHome from "./pages/EmployeeHome";
 import CreateLeave from "./pages/CreateLeave";
 import LeaveHistory from "./pages/LeaveHistory";
 
-// 🔥 IMPORT TRANG THÔNG BÁO CHUNG MỚI
+// IMPORT TRANG THÔNG BÁO CHUNG MỚI
 import AnnouncementPage from "./pages/AnnouncementPage";
+
+//trang lịch và ca làm
+import SchedulePage from "./pages/SchedulePage";
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
@@ -98,6 +101,17 @@ function App() {
           }
         />
 
+        <Route
+          path="/admin/schedule"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <SchedulePage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
         {/* 🔥 ROUTE THÔNG BÁO CHO QUẢN LÝ / GIÁM ĐỐC */}
         <Route
           path="/admin/announcements"
@@ -151,6 +165,17 @@ function App() {
             <PrivateRoute>
               <MainLayout>
                 <AnnouncementPage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/employee/schedule"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <SchedulePage />
               </MainLayout>
             </PrivateRoute>
           }

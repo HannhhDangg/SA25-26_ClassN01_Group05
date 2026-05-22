@@ -590,3 +590,251 @@ tbody tr:hover { background: #FAFAFA; }
   color: var(--text-light);
   flex-shrink: 0;
 }
+
+/* ════ SCHEDULE TABLE STYLES ════ */
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.schedule-table th {
+  padding: 12px 8px;
+  background-color: #F8FAFC;
+  border-bottom: 2px solid var(--border);
+}
+
+.schedule-table td {
+  text-align: center;
+  border-bottom: 1px solid var(--border-light);
+  height: 52px;
+}
+
+.schedule-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: 6px;
+  font-size: 12px;
+  user-select: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+/* Khối Đi làm */
+.block-working {
+  background-color: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+.icon-working { color: #16A34A; }
+
+/* Khối Cuối tuần */
+.block-weekend {
+  background-color: #F1F5F9;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
+}
+.icon-weekend { color: #94A3B8; }
+
+/* Khối Nghỉ phép */
+.block-leave {
+  background-color: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FCA5A5;
+}
+.icon-leave { color: #DC2626; }
+
+.block-leave:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.15);
+}
+
+/* Tùy biến thanh cuộn nếu danh sách phòng ban dài */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+/* ==============================================================
+   SCHEDULE PAGE & MINI CALENDAR STYLES
+   ============================================================== */
+
+/* --- Mini Calendar (Lịch xổ xuống) --- */
+.mini-calendar-popup {
+  position: absolute;
+  top: 120%;
+  left: 0;
+  width: 260px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: 1px solid #E2E8F0;
+  padding: 16px;
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.mini-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #1E293B;
+  font-size: 14px;
+  margin-bottom: 12px;
+  background: #1E293B;
+  color: white;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.mini-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.mini-calendar-grid.header div {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  padding-bottom: 8px;
+}
+
+.mini-calendar-grid.body .day-cell {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #334155;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin: auto;
+}
+
+.mini-calendar-grid.body .day-cell:hover {
+  background: #F1F5F9;
+}
+
+.mini-calendar-grid.body .day-cell.today {
+  color: var(--primary);
+  font-weight: 700;
+  background: var(--primary-light);
+}
+
+.mini-calendar-grid.body .day-cell.selected {
+  background: #EA580C; /* Màu cam giống thiết kế */
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.3);
+}
+
+.empty-day { width: 30px; height: 30px; }
+
+/* --- Table Grid --- */
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.schedule-table th {
+  padding: 14px 10px;
+  background-color: #F8FAFC;
+  border-bottom: 2px solid #E2E8F0;
+}
+
+.schedule-table td {
+  border-bottom: 1px solid #F1F5F9;
+  border-right: 1px solid #F1F5F9;
+}
+.schedule-table td:last-child { border-right: none; }
+
+/* --- Viên Thuốc (Pill Blocks) --- */
+.pill-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  user-select: none;
+  min-height: 36px;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.pill-working {
+  background-color: #DCFCE7;
+  color: #166534;
+}
+
+.pill-weekend {
+  background-color: #F1F5F9;
+  color: #64748B;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.pill-leave {
+  background-color: #DBEAFE; /* Màu xanh nước biển nhạt */
+  color: #1E40AF;
+  flex-direction: row;
+  gap: 6px;
+  cursor: help;
+}
+
+.pill-unexcused {
+  background-color: #FEE2E2;
+  color: #991B1B;
+  flex-direction: row;
+  gap: 6px;
+  cursor: help;
+}
+
+/* Chữ hiển thị đi muộn/về sớm */
+.sub-alert {
+  font-size: 10.5px;
+  font-weight: 700;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.text-orange { color: #EA580C; }
+
+/* --- Legend (Chú thích) --- */
+.schedule-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  margin-top: 20px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-item .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}

@@ -241,4 +241,170 @@ router.put("/:id/status", async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Lỗi cập nhật trạng thái" }); }
 });
 
+// ============================================================================
+// --- 8. LẤY DỮ LIỆU BẢNG LỊCH LÀM VIỆC (SCHEDULE) CHO 1 TUẦN ---
+// ============================================================================
+router.get("/schedule/weekly", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+
+    // Nhận tham số ngày bắt đầu của tuần từ Frontend (nếu không có thì lấy tuần hiện tại)
+    // Format: YYYY-MM-DD
+    const startDateParam = req.query.start_date;
+
+    let targetUsersQuery = "";
+    let params = [];
+    let paramIndex = 1;
+
+    // 1. Phân quyền hiển thị (Ai được xem lịch của ai)
+    if (currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN") {
+      // Giám đốc xem lịch của TẤT CẢ MANAGER
+      targetUsersQuery = `SELECT id, full_name, role, department_id, avatar_url FROM users WHERE role = 'MANAGER' AND status = 'ACTIVE' ORDER BY full_name ASC`;
+    } else if (currentUser.role === "MANAGER") {
+      // Trưởng phòng xem lịch của CHÍNH MÌNH và TẤT CẢ NHÂN VIÊN TRONG PHÒNG
+      const getDept = await pool.query("SELECT department_id as id FROM users WHERE id = $1", [currentUser.id]);
+      if (getDept.rows.length > 0 && getDept.rows[0].id) {
+        targetUsersQuery = `
+                    SELECT id, full_name, role, department_id, avatar_url 
+                    FROM users 
+                    WHERE status = 'ACTIVE' AND (department_id = $1 OR id = $2) 
+                    ORDER BY role DESC, full_name ASC
+                `;
+        params.push(getDept.rows[0].id, currentUser.id);
+        paramIndex = 3;
+      } else {
+        return res.json([]); // Chưa có phòng thì không xem được lịch
+      }
+    } else {
+      // Nhân viên thường: Xem lịch của MÌNH và ĐỒNG NGHIỆP CÙNG PHÒNG
+      const getDept = await pool.query("SELECT department_id as id FROM users WHERE id = $1", [currentUser.id]);
+      if (getDept.rows.length > 0 && getDept.rows[0].id) {
+        targetUsersQuery = `
+                    SELECT id, full_name, role, department_id, avatar_url 
+                    FROM users 
+                    WHERE status = 'ACTIVE' AND department_id = $1 
+                    ORDER BY role DESC, full_name ASC
+                `;
+        params.push(getDept.rows[0].id);
+        paramIndex = 2;
+      } else {
+        // Chưa có phòng thì chỉ xem được chính mình
+        targetUsersQuery = `SELECT id, full_name, role, department_id, avatar_url FROM users WHERE id = $1`;
+        params.push(currentUser.id);
+        paramIndex = 2;
+      }
+    }
+
+    // Thực thi lấy danh sách user
+    const targetUsers = await pool.query(targetUsersQuery, params);
+    if (targetUsers.rows.length === 0) return res.json([]);
+
+    // Lấy danh sách ID để query bảng nghỉ phép
+    const userIds = targetUsers.rows.map(u => u.id);
+
+    // 2. Xử lý Logic Ngày Tháng (Lấy 7 ngày trong tuần)
+    // PostgreSQL xử lý rất tốt việc này bằng hàm generate_series
+    let dateQuery = `
+            SELECT generate_series(
+                CAST($1 AS DATE), 
+                CAST($1 AS DATE) + interval '6 days', 
+                interval '1 day'
+            )::date as day_date
+        `;
+    // Nếu Frontend không gửi start_date, lấy ngày thứ 2 của tuần hiện tại làm mốc
+    let weekStart = startDateParam || new Date().toISOString().split('T')[0];
+
+    // Nếu không truyền start_date, tự tính Thứ 2 của tuần này trong Backend (Backup logic)
+    if (!startDateParam) {
+      const today = new Date();
+      const day = today.getDay() || 7; // Chuyển CN(0) thành 7
+      if (day !== 1) today.setHours(-24 * (day - 1)); // Lùi về Thứ 2
+      weekStart = today.toISOString().split('T')[0];
+    }
+
+    // Lấy danh sách 7 ngày trong tuần
+    const weekDaysRes = await pool.query(dateQuery, [weekStart]);
+    const weekDays = weekDaysRes.rows.map(row => row.day_date); // ["2023-10-23", "2023-10-24", ...]
+
+    // 3. Query bảng Nghỉ phép (Chỉ lấy những đơn đã APPROVED trong 7 ngày này của nhóm user trên)
+    const placeholders = userIds.map((_, i) => `$${i + 3}`).join(',');
+    const leavesQuery = `
+            SELECT user_id, start_date, end_date, leave_type, reason
+            FROM leave_requests
+            WHERE status = 'APPROVED'
+              AND user_id IN (${placeholders})
+              AND start_date <= $2 
+              AND end_date >= $1
+        `;
+    const leavesParams = [weekDays[0], weekDays[6], ...userIds];
+    const leavesRes = await pool.query(leavesQuery, leavesParams);
+    const leaves = leavesRes.rows;
+
+    // 4. "Nhào nặn" (Map) dữ liệu: Tạo ma trận User x 7 Ngày
+    const scheduleData = targetUsers.rows.map(user => {
+      const userSchedule = {
+        user: {
+          id: user.id,
+          full_name: user.full_name,
+          role: user.role,
+          avatar_url: user.avatar_url
+        },
+        days: []
+      };
+
+      // Duyệt qua 7 ngày trong tuần
+      weekDays.forEach(dateStr => {
+        const currentDate = new Date(dateStr);
+        const dayOfWeek = currentDate.getDay(); // 0 (CN) -> 6 (T7)
+
+        // Kiểm tra xem user này có đơn nghỉ phép APPROVED nào bao phủ ngày này không?
+        const isOnLeave = leaves.find(l => {
+          const start = new Date(l.start_date);
+          const end = new Date(l.end_date);
+          // Reset thời gian về 00:00:00 để so sánh cho chuẩn xác
+          start.setHours(0, 0, 0, 0);
+          end.setHours(0, 0, 0, 0);
+          currentDate.setHours(0, 0, 0, 0);
+          return l.user_id === user.id && currentDate >= start && currentDate <= end;
+        });
+
+        if (isOnLeave) {
+          userSchedule.days.push({
+            date: dateStr,
+            status: "LEAVE",
+            leave_type: isOnLeave.leave_type, // ANNUAL, UNPAID, SICK
+            reason: isOnLeave.reason
+          });
+        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+          // Nếu là Thứ 7 hoặc Chủ Nhật mà không xin nghỉ -> Gắn nhãn Ngày nghỉ cuối tuần
+          userSchedule.days.push({
+            date: dateStr,
+            status: "WEEKEND",
+          });
+        } else {
+          // Nếu là ngày thường và không xin nghỉ -> Gắn nhãn Đi làm
+          userSchedule.days.push({
+            date: dateStr,
+            status: "WORKING",
+          });
+        }
+      });
+
+      return userSchedule;
+    });
+
+    res.json({
+      week_start: weekDays[0],
+      week_end: weekDays[6],
+      schedule: scheduleData
+    });
+
+  } catch (err) {
+    console.error("Lỗi lấy lịch làm việc:", err);
+    res.status(500).json({ message: "Lỗi server khi tải lịch làm việc" });
+  }
+});
+
 module.exports = router;
