@@ -5,10 +5,7 @@ const Attendance =() =>{
   const [now, setNow] = useState(new Date());
   const [workedDates, setWorkedDates] = useState([]);
   const [calendarDate, setCalendarDate] = useState(new Date());
-  const [otpCode, setOtpCode] = useState("");
   const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}")); // Giả sử thông tin user được lưu trong localStorage sau khi đăng nhập, bao gồm user_id và device_id
-  const [generatedCode, setGeneratedCode] = useState("---");
-  const [timeLeft, setTimeLeft] = useState(30);
   const [logs, setLogs] = useState([]);
   const [deviceId,setDeviceId] = useState("");
   const currentYear = calendarDate.getFullYear();
@@ -41,18 +38,14 @@ const Attendance =() =>{
   const currenHours = now.getHours();
 
   // các điều kiện ràng buộc 
-  const canCheckedIn = !hasCheckedIn && currenHours >= 8;
-  const canCheckedOut = !hasCheckedOut && currenHours >= 16;
-  const isDoneToday = hasCheckedOut;
+  const isDoneToday = hasCheckedIn && hasCheckedOut;
+  const canCheckedIn = !hasCheckedIn;
+  const canCheckedOut = hasCheckedIn && !hasCheckedOut;
 
   const checkedIn = hasCheckedIn && ! hasCheckedOut;
   const statusText = isDoneToday ? "Tan Làm" : (hasCheckedIn ? "Đang Làm" : "Chưa Vào Làm");
 
-  // tính tổng số ngày trong tháng hiện 
-  const workedDaysInCurrentMonth = workedDates.filter(dateString =>{
-    const date = new Date(dateString);
-    return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
-  }).length;
+
 
   useEffect(() =>{
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -60,29 +53,8 @@ const Attendance =() =>{
   },[]);
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(); // bổ trợ chho Kiểm tra log (todayLog)
   }, []);
-  useEffect(() => {
-    if(canCheckedIn || canCheckedOut){
-      fetchCode();
-    }else{
-      setGeneratedCode("---");
-      setOtpCode("");
-      setTimeLeft(0)
-    }
-  },[canCheckedIn, canCheckedOut]);
-
-  useEffect( () => {
-    if(timeLeft <= 0) {
-      if (canCheckedIn || canCheckedOut) {
-        fetchCode();
-      }
-      return;
-    }
-    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    return() => clearInterval(timer);
-  }, [timeLeft, canCheckedIn, canCheckedOut]);
-
 
   // Lấy hoặc tạo device_id khi component mount
   useEffect(() => {
@@ -94,17 +66,53 @@ const Attendance =() =>{
     }
     setDeviceId(storedDeviceId);
   }, []);
+
+    // tính tổng số ngày trong tháng hiện 
+  const workedDaysInCurrentMonth = workedDates.filter(dateString =>{
+    const date = new Date(dateString);
+    return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+  }).length;
+  
+// Nút check-in check-out
   const handleAttendance = async() => {
-    if(!otpCode || otpCode.length !== 6){
-      toast.error("Vui lòng nhập đủ 6 số OTP: ");
-      return;
-    }
-    
-    // const user_id = user.user_id || user.id || 1;
     if (!user.id) {
       toast.error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
       return;
     }
+    if(hasCheckedIn && !window.confirm("Bạn có muốn chắc chắn chấm công tan làm không")){
+      return;
+    }
+
+    //  tính toán số phút trước khi gửi đi 
+    const Check_In_Hour = 8;
+    const Check_In_Minute = 30;
+    const Check_Out_Hour = 17;
+    const Check_Out_Minute = 0;
+    const GRACE_PERIOD_MINUTES = 10; // Số phút đi muộn được cho phép
+    const nowInMinutes = now.getHours() * 60 + now.getMinutes();
+
+    let lateMinutes = 0;
+    let earlyLeaveMinutes = 0;
+    
+    // Khai báo type và các biến dùng để hiển thị toast
+    const type = hasCheckedIn ? "check-out" : "check-in";
+    let checkInTimeNow = 0;
+    let checkOutTimeNow = 0;
+
+    if(type === "check-in"){
+      const checkInTimeInMinute = Check_In_Hour * 60 + Check_In_Minute;
+      checkInTimeNow = nowInMinutes - checkInTimeInMinute; // thời gian vào 
+      if(checkInTimeNow > 0){
+        lateMinutes = checkInTimeNow;
+      }
+    }else{ // trường hợp check-out 
+      const checkOutTimeInMinute = Check_Out_Hour * 60 + Check_Out_Minute;
+      checkOutTimeNow = nowInMinutes - checkOutTimeInMinute;
+      if(checkOutTimeNow < 0){
+        earlyLeaveMinutes = Math.abs(checkOutTimeNow);
+      }
+    }
+    
     try{
       const res = await fetch("/api/attendance/verify-code",{
         method: "POST",
@@ -113,27 +121,32 @@ const Attendance =() =>{
         },
         body: JSON.stringify({
           user_id: user.id,
-          code: otpCode,
           device_id: deviceId,
-          type: hasCheckedIn ? "check-out" : "check-in" // Xác định loại chấm công dựa trên trạng thái hiện tại
+          late_minutes: lateMinutes,
+          early_leave_minutes: earlyLeaveMinutes,
+          type: type 
         })
       });
 
       if(res.ok){
-        const currentHour = now.getHours();
-        const currentMinutes = now.getMinutes();
-
-        if(!hasCheckedIn){
-          const lateMinutes = (currentHour* 60 + currentMinutes) - (8 * 60 +30);
-          if(lateMinutes > 10){
-            toast.warning(`Chấm công thành công! Bạn đã đi muộn ${lateMinutes} phút`);
+        if(type === "check-in"){
+          if(checkInTimeNow < 0){
+            toast.warning(`Chấm công thành công! Bạn đã đi sớm ${Math.abs(checkInTimeNow)} phút`);
+          }else if(checkInTimeNow > GRACE_PERIOD_MINUTES){
+            toast.warning(`Chấm công thành công! Bạn đã đi muộn ${checkInTimeNow} phút`);
           }else{
             toast.success(`Chấm công thành công`);
           }
-        }else{
-          toast.info("Kết thúc ca làm việc. Đã ghi nhận giờ ra !");
+        }else{ //trường hợp checkout 
+          if(checkOutTimeNow < 0){
+            toast.warning(`Kết thúc ca làm việc! Bạn đã về sớm ${Math.abs(checkOutTimeNow)} phút`);
+          }else if(checkOutTimeNow > 0){
+            toast.info(`Kết thúc ca làm việc! Bạn đã về trễ ${checkOutTimeNow} phút (ghi nhận tăng ca).`);
+          }
+          else{
+            toast.info("Kết thúc ca làm việc. Đã ghi nhận giờ ra !");
+          }
         }      
-        setOtpCode("");
         fetchHistory();
       }else{
         const data = await res.json();
@@ -161,25 +174,7 @@ const Attendance =() =>{
   const handleNextMonth =() =>{
     setCalendarDate(new Date(currentYear, currentMonth + 1, 1));
   }
-  const fetchCode = async () => {
-    try{
-      const res = await fetch("/api/attendance/generate-code");
-      if(res.ok){
-        const data = await res.json();
-        setGeneratedCode(data.code);
-        setOtpCode(data.code); // Tự động điền mã vào ô nhập liệu
-        setTimeLeft(data.expires_in || 30);
-      } else {
-        console.error("Lỗi gọi API. HTTP Status:", res.status);
-        setGeneratedCode("LỖI");
-        setTimeLeft(5); // Thử lại sau 5s nếu lỗi để tránh lặp vô hạn
-      }
-    }catch(err){
-      console.error("Lỗi lấy mã chấm công",err);
-      setGeneratedCode("LỖI");
-      setTimeLeft(5); // Thử lại sau 5s nếu lỗi
-    }
-  }
+  
   const fetchHistory = async() => {
     if(!user.id)return;
     try{
@@ -297,19 +292,6 @@ const Attendance =() =>{
           {/* ẨN HIỆN Ô NHẬP MÃ THEO THỜI GIAN VÀ TRẠNG THÁI */}
           {(canCheckedIn || canCheckedOut) ? (
             <>
-              <div style={{ textAlign: "center", background: "#f8fafc", padding: "10px 20px", borderRadius: "8px", border: "1px dashed var(--border)", width: "100%", maxWidth: "280px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-sub)", marginBottom: "4px" }}>Mã hiển thị trên Terminal:</div>
-                <div style={{ fontSize: "28px", fontWeight: "bold", letterSpacing: "6px", color: "var(--primary)" }}>{generatedCode}</div>
-                <div style={{ fontSize: "12px", color: "var(--text-sub)", marginTop: "4px" }}>Đổi mã sau: <span style={{ color: timeLeft <= 5 ? "red" : "inherit", fontWeight: "bold" }}>{timeLeft}s</span></div>
-              </div>
-              <input 
-                type="text" 
-                maxLength="6"
-                placeholder="Nhập mã 6 số trên màn hình"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                style={{ width: "100%", maxWidth: "280px", padding: "12px", textAlign: "center", fontSize: "12px", letterSpacing: "4px", borderRadius: "8px", border: "1px solid var(--border)", outline: "none", fontWeight: "600" }}
-              />
               <button 
                 onClick={handleAttendance} 
                 style={{ cursor: "pointer", border: "none", borderRadius: "8px", padding: "14px 32px", fontWeight: 600, fontSize: "16px", color: "#fff", background: canCheckedOut ? "#EF4444" : "var(--primary, #2563eb)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)", transition: "all 0.2s ease-in-out", display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%", maxWidth: "280px", gap: "8px" }}

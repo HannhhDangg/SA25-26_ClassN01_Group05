@@ -88,11 +88,7 @@ services:
     volumes:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
-<<<<<<< HEAD
-      - /app/node_modules // do máy đạt chưa chạy npm install nên node_modules chưa có, tạo volume để tránh lỗi
-=======
-      - /app/node_modules
->>>>>>> 3e3137ab30e1b271efd059ccf6918c0b64c0d4e3
+      - /app/node_modules # do máy chưa chạy npm install nên node_modules chưa có, tạo volume để tránh lỗi
     depends_on:
       haproxy:
         condition: service_started

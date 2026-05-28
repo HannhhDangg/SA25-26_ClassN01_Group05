@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS attendance_logs (
     check_in_device_id VARCHAR(255),
     check_out_time TIMESTAMP,     
     check_out_device_id VARCHAR(255),
+    late_minutes INT DEFAULT 0, 
+    early_leave_minutes INT DEFAULT 0,
     status VARCHAR(50) DEFAULT 'Chưa Vào Làm', 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, work_date) 
