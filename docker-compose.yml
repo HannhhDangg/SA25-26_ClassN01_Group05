@@ -99,6 +99,32 @@ services:
     networks:
       - app-network
 
+  noti_service:
+    build: ./noti_service
+    restart: always
+    environment:
+      - PORT=3000
+      - DB_HOST=haproxy
+      - DB_PORT=5000
+      - DB_USER=postgres
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=postgres
+      - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
+      - REDIS_HOST=redis
+      - JWT_SECRET=secret_key_cua_ban
+    volumes:
+      - ./noti_service:/app
+      - /app/node_modules
+    depends_on:
+      haproxy:
+        condition: service_started
+      postgres-1:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+
   frontend:
     build: ./frontend
     environment:

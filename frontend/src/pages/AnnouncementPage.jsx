@@ -50,8 +50,8 @@ const AnnouncementPage = () => {
     const fetchAnnouncements = async () => {
         setLoadingList(true);
         try {
-            // 🔥 ĐÃ FIX: Thêm /auth_ser vào đường dẫn
-            const res = await fetch(`/api/auth_ser/announcements?role=${user.role}&email=${user.email}&department_id=${user.department_id}`, {
+            // 🔥 ĐÃ FIX: Đổi sang /noti_ser
+            const res = await fetch(`/api/noti_ser/announcements?role=${user.role}&email=${user.email}&department_id=${user.department_id}`, {
                 headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
             });
             if (res.ok) {
@@ -66,8 +66,8 @@ const AnnouncementPage = () => {
     const fetchHistory = async () => {
         if (!canSendAnnouncement) return;
         try {
-            // 🔥 ĐÃ FIX: Thêm /auth_ser vào đường dẫn
-            const res = await fetch(`/api/auth_ser/announcements/history?sender_id=${user.id}`, {
+            // 🔥 ĐÃ FIX: Đổi sang /noti_ser
+            const res = await fetch(`/api/noti_ser/announcements/history?sender_id=${user.id}`, {
                 headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
             });
             if (res.ok) {
@@ -130,8 +130,8 @@ const AnnouncementPage = () => {
         }
 
         try {
-            // 🔥 ĐÃ FIX: Thêm /auth_ser vào đường dẫn
-            const res = await fetch("/api/auth_ser/announcements", {
+            // 🔥 ĐÃ FIX: Đổi sang /noti_ser
+            const res = await fetch("/api/noti_ser/announcements", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
                 body: JSON.stringify(payload),
@@ -152,8 +152,8 @@ const AnnouncementPage = () => {
     // 5. Đánh dấu đọc
     const markRead = async (id) => {
         try {
-            // 🔥 ĐÃ FIX: Thêm /auth_ser vào đường dẫn
-            await fetch(`/api/auth_ser/announcements/${id}/read`, {
+            // 🔥 ĐÃ FIX: Đổi sang /noti_ser
+            await fetch(`/api/noti_ser/announcements/${id}/read`, {
                 method: "PUT",
                 headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
             });

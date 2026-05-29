@@ -8,26 +8,20 @@ const { createClient } = require("redis");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const mongoose = require("mongoose");
 
-// Import routes
-const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/users");
-const otpRoute = require("./routes/otp");
-const departmentRoutes = require("./routes/departments"); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY
+// CHỈ IMPORT ROUTE THÔNG BÁO
+const announcementRoutes = require("./routes/announcements");
 
 const app = express();
 const server = http.createServer(app);
 
+// 🔥 ĐỔI PORT THÀNH 3004
 const port = process.env.PORT || 3000;
 const redisHost = process.env.REDIS_HOST || "redis";
 const redisPort = process.env.REDIS_PORT || 6379;
-// const announcementRoutes = require("./routes/announcements"); Da tach sang noti_service rui nen khong can nua
 
 // --- CẤU HÌNH SOCKET.IO ---
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
+  cors: { origin: "*", methods: ["GET", "POST", "PUT"] },
 });
 
 // --- CẤU HÌNH REDIS ---
@@ -47,22 +41,17 @@ const redisUrl = `redis://${redisHost}:${redisPort}`;
 app.set("socketio", io);
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// --- SỬ DỤNG ROUTES CHUẨN XÁC ---
-app.use("/api/auth_ser", authRoutes);
-app.use("/api/auth_ser/users", userRoutes);
-app.use("/api/otp", otpRoute);
-app.use("/api/auth_ser/departments", departmentRoutes); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY ĐỂ KÍCH HOẠT API
-// app.use("/api/auth_ser/announcements", announcementRoutes); da tach sang noti_service rui nen khong can nua
+// --- SỬ DỤNG ROUTE MỚI ---
+app.use("/api/noti_ser/announcements", announcementRoutes);
 
-// --- KẾT NỐI MONGODB ---
-const mongoURI = process.env.MONGO_URI || "mongodb://db-mongo:27017/leave_logs";
+// --- KẾT NỐI MONGODB TỚI DATABASE RIÊNG CHO NOTI ---
+const mongoURI = process.env.MONGO_URI || "mongodb://db-mongo:27017/noti_logs";
 mongoose
   .connect(mongoURI)
-  .then(() => console.log("✅ Đã kết nối MongoDB thành công!"))
+  .then(() => console.log("✅ Đã kết nối MongoDB (Noti Logs) thành công!"))
   .catch((err) => console.error("❌ Lỗi kết nối MongoDB:", err));
 
 server.listen(port, () => {
-  console.log(`🚀 Server đang chạy tại http://localhost:${port}`);
+  console.log(`🚀 Noti Service đang chạy tại http://localhost:${port}`);
 });
