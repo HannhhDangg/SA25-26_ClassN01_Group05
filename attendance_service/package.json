@@ -1,0 +1,19 @@
+{
+  "name": "attendance_service",
+  "version": "1.0.0",
+  "description": "Attendance Microservice",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@socket.io/redis-adapter": "^8.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "pg": "^8.11.3",
+    "redis": "^4.6.12",
+    "socket.io": "^4.7.4"
+  }
+}

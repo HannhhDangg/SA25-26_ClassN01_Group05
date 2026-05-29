@@ -32,17 +32,3 @@ services:
           - /uploads
           - /socket.io
         strip_path: false
-
-  - name: noti-service
-    url: http://noti_service:3000
-    plugins:
-      - name: rate-limiting
-        config:
-          minute: 60
-          limit_by: ip
-          policy: local
-    routes:
-      - name: noti-routes
-        paths:
-          - /api/noti_ser
-        strip_path: false

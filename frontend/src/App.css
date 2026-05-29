@@ -500,6 +500,216 @@ tbody tr:hover { background: #FAFAFA; }
 .info-box { background: var(--bg-hover); border-radius: var(--r-md); padding: 11px 14px; font-size: 12.5px; color: var(--text-sub); margin-bottom: 14px; line-height: 1.65; }
 .info-box b { color: var(--text); }
 
+.attendance-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.attendance-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: #F8FAFF;
+  border: 1px solid #E5E7EB;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.calender-day-header{
+  text-align: center;
+}
+.calendar-month-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.calendar-sub {
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.attendance-work-total {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-day-header,
+.calendar-day-cell {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.calendar-day-header {
+  font-weight: 700;
+  color: var(--text-sub);
+}
+
+.calendar-day-cell {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  color: var(--text);
+}
+
+.calendar-day-cell.empty {
+  background: transparent;
+  border-color: transparent;
+}
+
+.calendar-day-cell.worked-day {
+  background: #E0F2FE;
+  border-color: #93C5FD;
+  color: #1D4ED8;
+  font-weight: 700;
+}
+
+.calendar-day-cell.today {
+  box-shadow: inset 0 0 0 2px #2563EB;
+}
+
+.attendance-status-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.attendance-status-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-sub);
+  margin-bottom: 6px;
+}
+
+.attendance-status-time {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.attendance-status-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.attendance-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--r-pill);
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.attendance-clock-card {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 14px;
+  align-items: center;
+  background: #F8FAFF;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--r-lg);
+  padding: 18px;
+}
+
+.clock-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: var(--primary-light);
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  font-size: 20px;
+}
+
+.attendance-clock-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.attendance-clock-detail {
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.attendance-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.attendance-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+}
+
+.attendance-info-icon {
+  width: 32px;
+  height: 32px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(59, 91, 219, 0.12);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.attendance-info-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.attendance-info-text {
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.attendance-history-card .table-header {
+  padding: 18px 20px;
+}
+
+.attendance-history-card table th,
+.attendance-history-card table td {
+  padding: 14px 18px;
+}
+
+.attendance-history-card tbody tr:hover {
+  background: #F5F7FF;
+}
+
 /* ── OTP ─────────────────────────────────────────────────── */
 .otp-container { text-align: center; padding: 8px 0; }
 .otp-container h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
