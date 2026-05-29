@@ -26,11 +26,34 @@ router.post("/send-otp", async (req, res) => {
     await redisClient.disconnect();
 
     const mailOptions = {
-      from: '"Hệ thống Nghỉ phép" <hnd10112005@gmail.com>',
+      from: '"Hệ Thống Quản Lý Nhân Sự HRM" <hnd10112005@gmail.com>',
       to: email,
-      subject: "Mã xác thực OTP của bạn",
-      html: `<h3>Mã OTP của bạn là: <b style="color:red;">${otp}</b></h3>
-             <p>Mã này sẽ hết hạn sau 5 phút.</p>`,
+      subject: "Mã xác thực OTP - Hệ Thống Quản Lý Nhân Sự HRM",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #2563eb; margin: 0;">HỆ THỐNG QUẢN LÝ NHÂN SỰ HRM</h2>
+          </div>
+          <div style="background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h3 style="color: #1e293b; margin-top: 0;">Xin chào,</h3>
+            <p style="color: #475569; font-size: 16px; line-height: 1.5;">
+              Bạn đã yêu cầu một mã OTP để xác thực. Vui lòng sử dụng mã dưới đây để hoàn tất quá trình:
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="display: inline-block; font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 5px; padding: 15px 30px; background-color: #eff6ff; border: 2px dashed #93c5fd; border-radius: 8px;">
+                ${otp}
+              </span>
+            </div>
+            <p style="color: #ef4444; font-size: 14px; text-align: center; font-weight: 600;">
+              Mã này sẽ hết hạn sau 5 phút.
+            </p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+            <p style="color: #94a3b8; font-size: 13px; text-align: center; margin: 0;">
+              Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này hoặc liên hệ với Quản trị viên để được bảo mật tài khoản.
+            </p>
+          </div>
+        </div>
+      `,
     };
 
     await transporter.sendMail(mailOptions);

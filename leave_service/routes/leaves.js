@@ -73,6 +73,19 @@ router.get("/balance/:user_id", async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Lỗi lấy số dư phép" }); }
 });
 
+// --- 2.5. EMPLOYEE: Lấy số người đang nghỉ hôm nay ---
+router.get("/stats/today", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM leave_requests 
+      WHERE status = 'APPROVED' 
+        AND CURRENT_DATE BETWEEN start_date AND end_date
+    `);
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) { res.status(500).json({ count: 0 }); }
+});
+
 // --- 3. Tạo đơn nghỉ phép (Giữ nguyên) ---
 router.post("/", async (req, res) => {
   const { user_id, reason, start_date, end_date, total_days } = req.body;
@@ -261,13 +274,13 @@ router.get("/schedule/weekly", async (req, res) => {
     // 1. Phân quyền hiển thị (Ai được xem lịch của ai)
     if (currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN") {
       // Giám đốc xem lịch của TẤT CẢ MANAGER
-      targetUsersQuery = `SELECT id, full_name, role, department_id, avatar_url FROM users WHERE role = 'MANAGER' AND status = 'ACTIVE' ORDER BY full_name ASC`;
+      targetUsersQuery = `SELECT id, full_name, role, department_id, avatar_url, TO_CHAR(created_at, 'YYYY-MM-DD') as created_at_str FROM users WHERE role = 'MANAGER' AND status = 'ACTIVE' ORDER BY full_name ASC`;
     } else if (currentUser.role === "MANAGER") {
       // Trưởng phòng xem lịch của CHÍNH MÌNH và TẤT CẢ NHÂN VIÊN TRONG PHÒNG
       const getDept = await pool.query("SELECT department_id as id FROM users WHERE id = $1", [currentUser.id]);
       if (getDept.rows.length > 0 && getDept.rows[0].id) {
         targetUsersQuery = `
-                    SELECT id, full_name, role, department_id, avatar_url 
+                    SELECT id, full_name, role, department_id, avatar_url, TO_CHAR(created_at, 'YYYY-MM-DD') as created_at_str 
                     FROM users 
                     WHERE status = 'ACTIVE' AND (department_id = $1 OR id = $2) 
                     ORDER BY role DESC, full_name ASC
@@ -278,23 +291,10 @@ router.get("/schedule/weekly", async (req, res) => {
         return res.json([]); // Chưa có phòng thì không xem được lịch
       }
     } else {
-      // Nhân viên thường: Xem lịch của MÌNH và ĐỒNG NGHIỆP CÙNG PHÒNG
-      const getDept = await pool.query("SELECT department_id as id FROM users WHERE id = $1", [currentUser.id]);
-      if (getDept.rows.length > 0 && getDept.rows[0].id) {
-        targetUsersQuery = `
-                    SELECT id, full_name, role, department_id, avatar_url 
-                    FROM users 
-                    WHERE status = 'ACTIVE' AND department_id = $1 
-                    ORDER BY role DESC, full_name ASC
-                `;
-        params.push(getDept.rows[0].id);
-        paramIndex = 2;
-      } else {
-        // Chưa có phòng thì chỉ xem được chính mình
-        targetUsersQuery = `SELECT id, full_name, role, department_id, avatar_url FROM users WHERE id = $1`;
-        params.push(currentUser.id);
-        paramIndex = 2;
-      }
+      // Nhân viên thường: CHỈ XEM ĐƯỢC LỊCH CỦA CHÍNH MÌNH (Không xem của đồng nghiệp)
+      targetUsersQuery = `SELECT id, full_name, role, department_id, avatar_url, TO_CHAR(created_at, 'YYYY-MM-DD') as created_at_str FROM users WHERE id = $1`;
+      params.push(currentUser.id);
+      paramIndex = 2;
     }
 
     // Thực thi lấy danh sách user
@@ -307,21 +307,27 @@ router.get("/schedule/weekly", async (req, res) => {
     // 2. Xử lý Logic Ngày Tháng (Lấy 7 ngày trong tuần)
     // PostgreSQL xử lý rất tốt việc này bằng hàm generate_series
     let dateQuery = `
-            SELECT generate_series(
-                CAST($1 AS DATE), 
-                CAST($1 AS DATE) + interval '6 days', 
-                interval '1 day'
-            )::date as day_date
+            SELECT TO_CHAR(
+                generate_series(
+                    CAST($1 AS DATE), 
+                    CAST($1 AS DATE) + interval '6 days', 
+                    interval '1 day'
+                ), 'YYYY-MM-DD'
+            ) as day_date
         `;
     // Nếu Frontend không gửi start_date, lấy ngày thứ 2 của tuần hiện tại làm mốc
     let weekStart = startDateParam || new Date().toISOString().split('T')[0];
 
     // Nếu không truyền start_date, tự tính Thứ 2 của tuần này trong Backend (Backup logic)
     if (!startDateParam) {
-      const today = new Date();
-      const day = today.getDay() || 7; // Chuyển CN(0) thành 7
-      if (day !== 1) today.setHours(-24 * (day - 1)); // Lùi về Thứ 2
-      weekStart = today.toISOString().split('T')[0];
+      // Fix lỗi múi giờ: Lấy theo giờ VN và chỉ tác động đến ngày, không dùng toISOString() trực tiếp
+      const vnTime = new Date(new Date().getTime() + 7 * 3600 * 1000);
+      const day = vnTime.getUTCDay() || 7;
+      vnTime.setUTCDate(vnTime.getUTCDate() - (day - 1));
+      const year = vnTime.getUTCFullYear();
+      const month = String(vnTime.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(vnTime.getUTCDate()).padStart(2, "0");
+      weekStart = `${year}-${month}-${d}`;
     }
 
     // Lấy danh sách 7 ngày trong tuần
@@ -342,6 +348,31 @@ router.get("/schedule/weekly", async (req, res) => {
     const leavesRes = await pool.query(leavesQuery, leavesParams);
     const leaves = leavesRes.rows;
 
+    // 3.5. Query bảng Chấm công (attendance_logs) để ĐỒNG BỘ DỮ LIỆU THẬT
+    const attendanceQuery = `
+        SELECT user_id, TO_CHAR(work_date, 'YYYY-MM-DD') as work_date_str, check_in_time, check_out_time, status, late_minutes, early_leave_minutes
+        FROM attendance_logs
+        WHERE user_id IN (${placeholders})
+          AND work_date >= $1 
+          AND work_date <= $2
+    `;
+    const attendanceRes = await pool.query(attendanceQuery, leavesParams);
+    const attendanceLogs = attendanceRes.rows;
+
+    // --- HÀM KIỂM TRA NGÀY LỄ ---
+    const getHolidayReason = (dateStr) => {
+      const mmdd = dateStr.substring(5);
+      if (mmdd === "01-01") return "Tết Dương Lịch";
+      if (mmdd === "04-26") return "Giỗ Tổ Hùng Vương";
+      if (mmdd === "04-30") return "Giải Phóng Miền Nam";
+      if (mmdd === "05-01") return "Quốc Tế Lao Động";
+      if (mmdd === "09-02") return "Quốc Khánh";
+      return null;
+    };
+
+    // Lấy ngày hôm nay (theo giờ VN) để fix cứng dữ liệu chấm công cho quá khứ
+    const todayStr = new Date(new Date().getTime() + 7 * 3600 * 1000).toISOString().split('T')[0];
+
     // 4. "Nhào nặn" (Map) dữ liệu: Tạo ma trận User x 7 Ngày
     const scheduleData = targetUsers.rows.map(user => {
       const userSchedule = {
@@ -358,6 +389,10 @@ router.get("/schedule/weekly", async (req, res) => {
       weekDays.forEach(dateStr => {
         const currentDate = new Date(dateStr);
         const dayOfWeek = currentDate.getDay(); // 0 (CN) -> 6 (T7)
+        const holidayReason = getHolidayReason(dateStr);
+
+        // Lấy ngày tạo tài khoản trực tiếp từ DB format (Tránh lỗi múi giờ của Javascript làm lệch ngày)
+        const userCreatedAtStr = user.created_at_str || "2026-04-01";
 
         // Kiểm tra xem user này có đơn nghỉ phép APPROVED nào bao phủ ngày này không?
         const isOnLeave = leaves.find(l => {
@@ -377,18 +412,105 @@ router.get("/schedule/weekly", async (req, res) => {
             leave_type: isOnLeave.leave_type, // ANNUAL, UNPAID, SICK
             reason: isOnLeave.reason
           });
-        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
-          // Nếu là Thứ 7 hoặc Chủ Nhật mà không xin nghỉ -> Gắn nhãn Ngày nghỉ cuối tuần
+        } else if (holidayReason) {
+          // Các ngày lễ lớn của Việt Nam
+          userSchedule.days.push({
+            date: dateStr,
+            status: "HOLIDAY",
+            reason: holidayReason,
+            attendance_status: holidayReason // Bổ sung để Frontend có thể hiển thị chữ thay vì để trắng
+          });
+        } else if (dayOfWeek === 0) {
+          // Bỏ Thứ 7, chỉ áp dụng Chủ Nhật là ngày nghỉ
           userSchedule.days.push({
             date: dateStr,
             status: "WEEKEND",
+            reason: "Chủ Nhật",
+            attendance_status: "Cuối Tuần" // Bổ sung để Frontend có thể hiển thị chữ 
           });
         } else {
           // Nếu là ngày thường và không xin nghỉ -> Gắn nhãn Đi làm
-          userSchedule.days.push({
+          let dayData = {
             date: dateStr,
             status: "WORKING",
-          });
+          };
+
+          // Kiểm tra xem có dữ liệu chấm công THẬT từ CSDL không
+          const actualLog = attendanceLogs.find(a => a.user_id === user.id && a.work_date_str === dateStr);
+          
+          // 🔥 Mốc ngày fix cứng dữ liệu theo yêu cầu
+          const hardcodeLimit = "2026-05-29";
+
+          // Nếu ngày đang xét là ngày TRƯỚC KHI nhân viên vào làm (trước ngày tạo TK)
+          if (dateStr < userCreatedAtStr) {
+            dayData.status = "NOT_JOINED";
+            dayData.attendance_status = "Chưa gia nhập"; // Ngày nhân viên chưa bắt đầu đi làm
+          } else if (actualLog) {
+            dayData.check_in_time = actualLog.check_in_time;
+            dayData.check_out_time = actualLog.check_out_time;
+            
+            // Xử lý để ưu tiên hiển thị đúng dữ liệu "vắng mặt" từ seeding DB
+            if (actualLog.status && (actualLog.status.toLowerCase().includes('vắng') || actualLog.status === 'UNEXCUSED' || actualLog.status.toLowerCase().includes('không phép'))) {
+              dayData.status = "UNEXCUSED";
+              dayData.reason = actualLog.status;
+              dayData.attendance_status = actualLog.status;
+            } else {
+              // Ưu tiên hiển thị trạng thái Đi muộn / Về sớm thay vì chỉ "Đang Làm" hoặc "Tan Làm"
+              let attStatus = actualLog.status === 'Tan Làm' ? 'Đúng Giờ' : actualLog.status;
+              
+              let isLate = actualLog.late_minutes > 0;
+              let isEarly = actualLog.early_leave_minutes > 0;
+
+              // Tự động tính toán lại Đi muộn / Về sớm từ giờ thực tế (Nếu DB không lưu late_minutes)
+              if (actualLog.check_in_time) {
+                 const d = new Date(actualLog.check_in_time);
+                 let h = d.getUTCHours();
+                 let m = d.getUTCMinutes();
+                 // Phân biệt Seed Data (fix cứng giây = 0) và Dữ liệu thật (lưu theo UTC) để fix lệch múi giờ
+                 const isSeed = d.getUTCSeconds() === 0 && (h === 7 || h === 8 || h === 17);
+                 if (!isSeed) h = (h + 7) % 24; // Chuyển UTC -> VN Time
+
+                 // Ca làm bắt đầu 8:30 sáng, cho trễ 10 phút -> 8:40
+                 if (h > 8 || (h === 8 && m > 40)) isLate = true;
+              }
+              if (actualLog.check_out_time) {
+                 const d = new Date(actualLog.check_out_time);
+                 let h = d.getUTCHours();
+                 const isSeed = d.getUTCSeconds() === 0 && (h === 7 || h === 8 || h === 17);
+                 if (!isSeed) h = (h + 7) % 24;
+
+                 // Ca làm kết thúc 17:00 chiều (h > 10 để tránh nhầm với rạng sáng)
+                 if (h < 17) isEarly = true;
+              }
+
+              if (actualLog.status && actualLog.status.toLowerCase().includes('muộn')) isLate = true;
+              if (actualLog.status && actualLog.status.toLowerCase().includes('sớm')) isEarly = true;
+
+              if (isLate && isEarly) {
+                 attStatus = "Đi muộn & Về sớm";
+              } else if (isLate) {
+                 attStatus = "Đi muộn";
+              } else if (isEarly) {
+                 attStatus = "Về sớm";
+              }
+              dayData.attendance_status = attStatus;
+            }
+          } else if (dateStr <= hardcodeLimit && dateStr <= todayStr) {
+            // 🔥 Tự động báo đi làm đầy đủ BAO GỒM CẢ NGÀY HÔM NAY theo yêu cầu của bạn
+            dayData.check_in_time = `${dateStr}T08:00:00`;
+            dayData.check_out_time = `${dateStr}T17:00:00`;
+            dayData.attendance_status = "Đúng Giờ";
+          } else if (dateStr < todayStr) {
+            // Quá khứ (sau 29/05) mà KHÔNG có log thật -> Đánh dấu nghỉ không phép
+            dayData.status = "UNEXCUSED";
+            dayData.reason = "Không chấm công";
+          } else if (dateStr === todayStr) {
+             // Hôm nay nhưng chưa chấm công
+             dayData.attendance_status = "Chưa chấm công";
+          }
+          // Tương lai (dateStr > todayStr) -> status = "WORKING", attendance_status = undefined (Chờ chấm công thủ công)
+
+          userSchedule.days.push(dayData);
         }
       });
 

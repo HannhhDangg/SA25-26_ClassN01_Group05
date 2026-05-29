@@ -9,13 +9,19 @@ const EmployeeHome = () => {
   const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}"));
   const [leaveCount, setLeaveCount] = useState(0);
   const [balance, setBalance] = useState({ used: 0, max: 12, remaining: 12 });
+  const token = localStorage.getItem("token");
 
   const fetchData = useCallback(() => {
-    fetch("/api/leave_ser/stats/today").then(r => r.json()).then(d => setLeaveCount(d.count || 0)).catch(() => { });
+    fetch("/api/leave_ser/stats/today", {
+      headers: { "Authorization": `Bearer ${token}` }
+    }).then(r => r.json()).then(d => setLeaveCount(d.count || 0)).catch(() => { });
+
     if (user?.id) {
-      fetch(`/api/leave_ser/balance/${user.id}`).then(r => r.json()).then(d => setBalance(d)).catch(() => { });
+      fetch(`/api/leave_ser/balance/${user.id}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      }).then(r => r.json()).then(d => setBalance(d)).catch(() => { });
     }
-  }, [user]);
+  }, [user, token]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

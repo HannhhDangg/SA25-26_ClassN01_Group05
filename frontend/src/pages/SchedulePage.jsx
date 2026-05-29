@@ -97,22 +97,9 @@ const SchedulePage = () => {
             const res = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
             if (res.ok) {
                 const data = await res.json();
-                // 🔥 GIẢ LẬP DỮ LIỆU CHẤM CÔNG (Để bạn xem trước UI. Sau này API trả về thật sẽ tự khớp)
-                // Tôi sẽ chèn ngẫu nhiên data đi muộn/không phép vào một vài ô WORKING để test UI
-                const mappedData = (data.schedule || []).map(userObj => ({
-                    ...userObj,
-                    days: userObj.days.map(day => {
-                        // Giả lập 10% tỷ lệ đi muộn, 5% nghỉ không phép cho ngày WORKING
-                        if (day.status === "WORKING") {
-                            const rand = Math.random();
-                            if (rand < 0.05) return { ...day, status: "UNEXCUSED", reason: "Không thấy chấm công" };
-                            if (rand < 0.15) return { ...day, late_minutes: Math.floor(Math.random() * 45) + 5 };
-                        }
-                        return day;
-                    })
-                }));
-
-                setScheduleData(mappedData);
+                
+                // Đọc dữ liệu thật từ Backend, không dùng random giả lập nữa
+                setScheduleData(data.schedule || []);
                 setWeekStart(data.week_start);
                 setWeekEnd(data.week_end);
             } else {
@@ -130,19 +117,29 @@ const SchedulePage = () => {
     const handlePrevWeek = () => {
         const current = new Date(weekStart);
         current.setDate(current.getDate() - 7);
-        setTargetDate(current.toISOString().split("T")[0]);
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, "0");
+        const day = String(current.getDate()).padStart(2, "0");
+        setTargetDate(`${year}-${month}-${day}`);
     };
 
     const handleNextWeek = () => {
         const current = new Date(weekStart);
         current.setDate(current.getDate() + 7);
-        setTargetDate(current.toISOString().split("T")[0]);
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, "0");
+        const day = String(current.getDate()).padStart(2, "0");
+        setTargetDate(`${year}-${month}-${day}`);
     };
 
     const handleDatePick = (date) => {
-        const day = date.getDay() || 7;
-        if (day !== 1) date.setHours(-24 * (day - 1)); // Lùi về Thứ 2
-        setTargetDate(date.toISOString().split("T")[0]);
+        const d = new Date(date);
+        const day = d.getDay() || 7;
+        d.setDate(d.getDate() - (day - 1)); 
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const dom = String(d.getDate()).padStart(2, "0");
+        setTargetDate(`${year}-${month}-${dom}`);
         setShowPicker(false);
     };
 
@@ -270,18 +267,20 @@ const SchedulePage = () => {
 
                                                     {/* TRẠNG THÁI: ĐI LÀM (Kèm Check Đi muộn/Về sớm) */}
                                                     {day.status === "WORKING" && (
-                                                        <div className="pill-block pill-working">
+                                                        <div className="pill-block" 
+                                                            style={
+                                                                (!day.attendance_status || day.attendance_status === "Chưa chấm công") 
+                                                                ? { background: "#F1F5F9", color: "#64748B", border: "1px dashed #CBD5E1" } 
+                                                                : (day.attendance_status.toLowerCase().includes("muộn") || day.attendance_status.toLowerCase().includes("sớm"))
+                                                                ? { background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A" }
+                                                                : (day.attendance_status === "Đang Làm")
+                                                                ? { background: "#DBEAFE", color: "#2563EB", border: "1px solid #BFDBFE" }
+                                                                : { background: "#DCFCE7", color: "#16A34A", border: "1px solid #BBF7D0" }
+                                                            }>
                                                             <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                                                                <FaCheckCircle size={13} />
-                                                                <span>Đi làm</span>
+                                                                {day.attendance_status && day.attendance_status !== "Chưa chấm công" ? <FaCheckCircle size={13} /> : <FaCalendarDay size={13} />}
+                                                                <span style={{ fontWeight: 600 }}>{day.attendance_status === "Chưa chấm công" ? "Chưa chấm công" : (!day.attendance_status ? "Lịch đi làm" : day.attendance_status)}</span>
                                                             </div>
-                                                            {/* Thông báo phụ: Đi muộn / Về sớm */}
-                                                            {(day.late_minutes > 0 || day.early_minutes > 0) && (
-                                                                <div className="sub-alert text-orange">
-                                                                    <FaClock size={9} />
-                                                                    {day.late_minutes ? `Muộn ${day.late_minutes}p` : `Về sớm ${day.early_minutes}p`}
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     )}
 
@@ -309,6 +308,23 @@ const SchedulePage = () => {
                                                         </div>
                                                     )}
 
+                                                    {/* TRẠNG THÁI: NGHỈ LỄ */}
+                                                    {day.status === "HOLIDAY" && (
+                                                        <div className="pill-block" style={{ background: "#F3E8FF", color: "#9333EA", border: "1px dashed #D8B4FE" }}>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+                                                                <FaCalendarDay size={13} />
+                                                                <span style={{ fontWeight: 600 }}>{day.attendance_status || "Nghỉ lễ"}</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* TRẠNG THÁI: CHƯA CÓ DỮ LIỆU (NOT_JOINED) */}
+                                                    {day.status === "NOT_JOINED" && (
+                                                        <div className="pill-block" style={{ background: "#F8FAFC", color: "#94A3B8", border: "1px dashed #CBD5E1" }}>
+                                                            <span>Chưa có dữ liệu</span>
+                                                        </div>
+                                                    )}
+
                                                 </td>
                                             ))}
                                         </tr>
@@ -324,16 +340,22 @@ const SchedulePage = () => {
             <div className="schedule-legend">
                 <div style={{ fontWeight: 700, color: "var(--text)", marginRight: 10 }}>Chú thích ký hiệu:</div>
                 <div className="legend-item">
-                    <div className="dot" style={{ background: "#22C55E" }} /> Kế hoạch đi làm
+                    <div className="dot" style={{ background: "#22C55E" }} /> Đã đi làm
                 </div>
                 <div className="legend-item">
-                    <div className="dot" style={{ background: "#94A3B8" }} /> Ngày nghỉ cuối tuần
+                    <div className="dot" style={{ background: "#CBD5E1", border: "1px dashed #94A3B8" }} /> Lịch làm việc (chưa chấm)
+                </div>
+                <div className="legend-item">
+                    <div className="dot" style={{ background: "#94A3B8" }} /> Ngày nghỉ
+                </div>
+                <div className="legend-item">
+                    <div className="dot" style={{ background: "#9333EA" }} /> Lễ / Tết
                 </div>
                 <div className="legend-item">
                     <div className="dot" style={{ background: "#F59E0B" }} /> Đi muộn / Về sớm
                 </div>
                 <div className="legend-item">
-                    <div className="dot" style={{ background: "#3B82F6" }} /> Đã duyệt nghỉ phép (Hover xem lý do)
+                    <div className="dot" style={{ background: "#3B82F6" }} /> Nghỉ có phép
                 </div>
                 <div className="legend-item">
                     <div className="dot" style={{ background: "#EF4444" }} /> Nghỉ không phép

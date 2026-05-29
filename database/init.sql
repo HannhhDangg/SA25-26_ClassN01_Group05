@@ -186,7 +186,7 @@ INSERT INTO departments (name, description) VALUES
 ('Phòng Hành Chính Nhân Sự', 'Quản trị nhân lực, chấm công & tiền lương');
 
 -- 2. Tạo Tài khoản Superadmin mặc định (ID phòng: 1)
-INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id) 
+INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id, created_at) 
 VALUES (
     'superadmin', 
     '$2b$10$/bKah2RLip2uUFFAE1vOIO8Ase7DDuTEnHnogZwVz5RCXeJBGDjGC', 
@@ -195,11 +195,12 @@ VALUES (
     'SUPERADMIN', 
     'ACTIVE', 
     50000000, 
-    1
+    1,
+    '2026-04-01 00:00:00'
 );
 
 -- 3. Tạo Tài khoản Manager phòng Hành Chính Nhân Sự (ID phòng: 3)
-INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id) 
+INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id, created_at) 
 VALUES (
     'manager_hcns', 
     crypt('23010243', gen_salt('bf', 10)), 
@@ -208,11 +209,12 @@ VALUES (
     'MANAGER', 
     'ACTIVE', 
     25000000, 
-    3
+    3,
+    '2026-04-01 00:00:00'
 );
 
 -- 4. Tạo Tài khoản Manager phòng IT (ID phòng: 2)
-INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id) 
+INSERT INTO users (username, password, full_name, email, role, status, base_salary, department_id, created_at) 
 VALUES (
     'manager_it', 
     crypt('23010243', gen_salt('bf', 10)), 
@@ -221,7 +223,8 @@ VALUES (
     'MANAGER', 
     'ACTIVE', 
     30000000, 
-    2
+    2,
+    '2026-04-01 00:00:00'
 );
 
 -- 5. Tự động kết nối ID Trưởng phòng ngược lại vào bảng departments
@@ -230,7 +233,7 @@ UPDATE departments SET manager_id = (SELECT id FROM users WHERE username = 'mana
 
 -- 6. THÊM MỚI: 2 tài khoản nhân viên test (STAFF) - Mật khẩu: 12345678
 -- Nhân viên 1: Thuộc phòng IT (department_id = 2)
-INSERT INTO users (username, password, full_name, email, phone_number, role, status, base_salary, department_id)
+INSERT INTO users (username, password, full_name, email, phone_number, role, status, base_salary, department_id, created_at)
 VALUES (
     'hanknguyen',
     crypt('12345678', gen_salt('bf', 10)),
@@ -240,11 +243,12 @@ VALUES (
     'STAFF',
     'ACTIVE',
     12000000,
-    2
+    2,
+    '2026-04-01 00:00:00'
 );
 
 -- Nhân viên 2: Thuộc phòng HCNS (department_id = 3)
-INSERT INTO users (username, password, full_name, email, phone_number, role, status, base_salary, department_id)
+INSERT INTO users (username, password, full_name, email, phone_number, role, status, base_salary, department_id, created_at)
 VALUES (
     'hanhnguyen',
     crypt('12345678', gen_salt('bf', 10)),
@@ -254,5 +258,27 @@ VALUES (
     'STAFF',
     'ACTIVE',
     10000000,
-    3
+    3,
+    '2026-04-01 00:00:00'
 );
+
+-- 7. THÊM MỚI: Dữ liệu Đơn nghỉ phép mẫu (Seed data)
+INSERT INTO leave_requests (user_id, leave_type, reason, start_date, end_date, total_days, status, approver_id) VALUES
+-- Đơn đã duyệt (Trong 14 ngày qua)
+(4, 'SICK', 'Bị sốt siêu vi, xin nghỉ ở nhà điều trị', CURRENT_DATE - INTERVAL '12 days', CURRENT_DATE - INTERVAL '12 days', 1, 'APPROVED', 3),
+(5, 'ANNUAL', 'Về quê có việc gia đình', CURRENT_DATE - INTERVAL '10 days', CURRENT_DATE - INTERVAL '9 days', 2, 'APPROVED', 2),
+-- Đơn chờ duyệt (Để hiển thị ở phần duyệt đơn)
+(4, 'ANNUAL', 'Xin nghỉ đi khám bệnh tổng quát', CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE + INTERVAL '2 days', 1, 'PENDING', NULL),
+(5, 'UNPAID', 'Nhà có việc đột xuất', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE + INTERVAL '3 days', 1, 'PENDING', NULL);
+
+-- 8. THÊM MỚI: Dữ liệu Chấm công mẫu (Seed data)
+INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, status) VALUES
+-- Nhân viên Hank Nguyễn (ID: 4)
+(4, CURRENT_DATE - INTERVAL '8 days', NULL, NULL, 'Không phép'),
+(4, CURRENT_DATE - INTERVAL '5 days', (CURRENT_DATE - INTERVAL '5 days') + TIME '08:15:00', (CURRENT_DATE - INTERVAL '5 days') + TIME '17:00:00', 'Đi Muộn'),
+(4, CURRENT_DATE - INTERVAL '2 days', NULL, NULL, 'Vắng mặt'),
+
+-- Nhân viên Hanh Nguyễn (ID: 5)
+(5, CURRENT_DATE - INTERVAL '7 days', NULL, NULL, 'Không phép'),
+(5, CURRENT_DATE - INTERVAL '4 days', (CURRENT_DATE - INTERVAL '4 days') + TIME '08:00:00', (CURRENT_DATE - INTERVAL '4 days') + TIME '17:00:00', 'Tan Làm'),
+(5, CURRENT_DATE - INTERVAL '3 days', NULL, NULL, 'Vắng mặt');

@@ -7,6 +7,7 @@ const Attendance =() =>{
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}")); // Giả sử thông tin user được lưu trong localStorage sau khi đăng nhập, bao gồm user_id và device_id
   const [logs, setLogs] = useState([]);
+  const token = localStorage.getItem("token");
   const [deviceId,setDeviceId] = useState("");
   const [teamAttendance, setTeamAttendance] = useState([]);
   const currentYear = calendarDate.getFullYear();
@@ -46,6 +47,18 @@ const Attendance =() =>{
   const checkedIn = hasCheckedIn && ! hasCheckedOut;
   const statusText = isDoneToday ? "Tan Làm" : (hasCheckedIn ? "Đang Làm" : "Chưa Vào Làm");
 
+  // Kiểm tra ngày nghỉ & Lễ
+  const getHolidayReason = (date) => {
+    const mmdd = String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+    if (mmdd === "01-01") return "Tết Dương Lịch";
+    if (mmdd === "04-26") return "Giỗ Tổ Hùng Vương";
+    if (mmdd === "04-30") return "Giải Phóng Miền Nam";
+    if (mmdd === "05-01") return "Quốc Tế Lao Động";
+    if (mmdd === "09-02") return "Quốc Khánh";
+    return null;
+  };
+  const holidayReason = getHolidayReason(now);
+  const isDayOff = now.getDay() === 0 || holidayReason !== null;
 
 
   useEffect(() =>{
@@ -79,6 +92,10 @@ const Attendance =() =>{
   const handleAttendance = async() => {
     if (!user.id) {
       toast.error("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
+    if (isDayOff) {
+      toast.error("Không thể chấm công vào ngày nghỉ!");
       return;
     }
     if(hasCheckedIn && !window.confirm("Bạn có muốn chắc chắn chấm công tan làm không")){
@@ -119,7 +136,8 @@ const Attendance =() =>{
       const res = await fetch("/api/attendance/verify-code",{
         method: "POST",
         headers:{
-          "Content-Type":"application/json"
+          "Content-Type":"application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           user_id: user.id,
@@ -180,13 +198,16 @@ const Attendance =() =>{
   const fetchHistory = async() => {
     if(!user.id)return;
     try{
-      const res = await fetch(`/api/attendance/history/${user.id}`);
+      const res = await fetch(`/api/attendance/history/${user.id}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       if(res.ok){
         const data = await res.json();
-        setLogs(data);
+        const logsArray = Array.isArray(data) ? data : []; // Tránh sập trang web nếu dữ liệu sai định dạng
+        setLogs(logsArray);
 
         // trích suất những ngày đi làm
-        const dates = data
+        const dates = logsArray
           .filter(log => log.check_out_time)
           .map(log => formatDateKey(new Date(log.work_date)));
         setWorkedDates(dates);
@@ -200,10 +221,12 @@ const Attendance =() =>{
   const fetchTeamAttendance = async () => {
     if (user.role === "MANAGER" && user.department_id) {
       try {
-        const res = await fetch(`/api/attendance/team-today/${user.department_id}`);
+        const res = await fetch(`/api/attendance/team-today/${user.department_id}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
         if (res.ok) {
           const data = await res.json();
-          setTeamAttendance(data);
+          setTeamAttendance(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         console.log("Lỗi lấy danh sách chấm công nhóm: ", err);
@@ -306,7 +329,15 @@ const Attendance =() =>{
             </div>
           </div>
           {/* ẨN HIỆN Ô NHẬP MÃ THEO THỜI GIAN VÀ TRẠNG THÁI */}
-          {(canCheckedIn || canCheckedOut) ? (
+          {isDayOff ? (
+             <div style={{ padding: "15px", textAlign: "center", background: "#f1f5f9", borderRadius: "8px", width: "100%", maxWidth: "280px" }}>
+               <span style={{ color: "#3b82f6", fontWeight: "bold", fontSize: "14px" }}>🎉 Hôm nay là ngày nghỉ</span>
+               <div style={{ fontSize: "13px", color: "var(--text-sub)", marginTop: "4px" }}>
+                 {holidayReason ? `Nghỉ lễ: ${holidayReason}` : "Nghỉ cuối tuần (Chủ Nhật)"}
+               </div>
+               <div style={{ fontSize: "12px", color: "#EF4444", marginTop: "8px" }}>Hệ thống đóng chấm công.</div>
+             </div>
+          ) : (canCheckedIn || canCheckedOut) ? (
             <>
               <button 
                 onClick={handleAttendance} 
@@ -320,7 +351,7 @@ const Attendance =() =>{
           ) : (
              <div style={{ padding: "15px", textAlign: "center", background: "#f1f5f9", borderRadius: "8px", width: "100%", maxWidth: "280px" }}>
                {isDoneToday ? (
-                 <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "14px" }}>🎉 Đã hoàn thành công việc hôm nay!</span>
+                 <span style={{ color: "#16a34a", fontWeight: "bold", fontSize: "14px" }}> Đã chấm công hôm nay!</span>
                ) : hasCheckedIn ? (
                  <span style={{ color: "#ea580c", fontWeight: "bold", fontSize: "14px" }}>⏳ Chưa đến giờ tan làm (17:00)</span>
                ) : (
