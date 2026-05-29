@@ -103,6 +103,17 @@ function App() {
         />
 
         <Route
+          path="/admin/attendance"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <Attendance />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
           path="/admin/schedule"
           element={
             <PrivateRoute>

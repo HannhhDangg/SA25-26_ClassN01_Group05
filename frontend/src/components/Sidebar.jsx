@@ -70,7 +70,6 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0 }) => {
             <MenuItem icon={FaThLarge} label="Trang chủ" active={isActive("/admin")} onClick={() => navigate("/admin")} />
 
             <div className="menu-label">Nghiệp vụ</div>
-            <MenuItem icon={FaClipboardCheck} label="Chấm công" active={isActive("/admin/attendance")} onClick={() => navigate("/admin/attendance")} />
             <MenuItem icon={FaCalendarAlt} label="Quản lý nghỉ phép" active={isActive("/admin/leaves")} onClick={() => navigate("/admin/leaves")} badge={pendingLeaves} />
             <MenuItem icon={FaCalendarCheck} label="Lịch & Ca làm" active={isActive("/admin/schedule")} onClick={() => navigate("/admin/schedule")} />
             <MenuItem icon={FaCoins} label="Tính lương" active={isActive("/admin/salary")} onClick={() => navigate("/admin/salary")} />

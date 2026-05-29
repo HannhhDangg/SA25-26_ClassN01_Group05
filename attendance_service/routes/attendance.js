@@ -50,4 +50,24 @@ router.get("/history/:user_id",async(req,res)=>{
     res.status(500).json({message:"Lỗi hệ thống"});
   }
 })
+
+// --- 3. API Quản lý: Lấy danh sách chấm công hôm nay của nhân viên trong phòng ban ---
+router.get("/team-today/:department_id", async (req, res) => {
+  const { department_id } = req.params;
+  try {
+    const query = `
+      SELECT u.id, u.full_name, u.avatar_url, a.check_in_time, a.check_out_time, a.status 
+      FROM users u 
+      LEFT JOIN attendance_logs a ON u.id = a.user_id AND a.work_date = CURRENT_DATE
+      WHERE u.department_id = $1 AND u.role = 'STAFF'
+      ORDER BY a.check_in_time DESC NULLS LAST
+    `;
+    const result = await pool.query(query, [department_id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Lỗi lấy dữ liệu chấm công nhóm", err);
+    res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+});
+
 module.exports = router;

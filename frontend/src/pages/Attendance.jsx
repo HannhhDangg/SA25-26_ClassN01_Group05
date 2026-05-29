@@ -8,6 +8,7 @@ const Attendance =() =>{
   const [user] = useState(JSON.parse(localStorage.getItem("user") || "{}")); // Giả sử thông tin user được lưu trong localStorage sau khi đăng nhập, bao gồm user_id và device_id
   const [logs, setLogs] = useState([]);
   const [deviceId,setDeviceId] = useState("");
+  const [teamAttendance, setTeamAttendance] = useState([]);
   const currentYear = calendarDate.getFullYear();
   const currentMonth = calendarDate.getMonth();
   const monthLabel = calendarDate.toLocaleDateString("vi-VN", { month: "long" });
@@ -54,6 +55,7 @@ const Attendance =() =>{
 
   useEffect(() => {
     fetchHistory(); // bổ trợ chho Kiểm tra log (todayLog)
+    fetchTeamAttendance();
   }, []);
 
   // Lấy hoặc tạo device_id khi component mount
@@ -194,6 +196,20 @@ const Attendance =() =>{
       console.log("Lỗi lấy lịch sử chấm công: ",err);
     }
   }
+
+  const fetchTeamAttendance = async () => {
+    if (user.role === "MANAGER" && user.department_id) {
+      try {
+        const res = await fetch(`/api/attendance/team-today/${user.department_id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTeamAttendance(data);
+        }
+      } catch (err) {
+        console.log("Lỗi lấy danh sách chấm công nhóm: ", err);
+      }
+    }
+  };
   return(
     <div className="attendance-page">
       <div className="page-header" style={{marginBottom: 18}}>
@@ -346,6 +362,52 @@ const Attendance =() =>{
             </table>
         </div>
       </div>
+
+      {/* HIỂN THỊ BẢNG THEO DÕI NHÓM NẾU LÀ MANAGER */}
+      {user.role === "MANAGER" && (
+        <div className="card" style={{ marginTop: 20 }}>
+          <div style={{padding: "16px 20px", fontWeight: 600, fontSize: "20px", color: "var(--text)"}}>Trạng Thái Điểm Danh Nhóm Hôm Nay</div>
+          <div className="table-wrap-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{fontSize:"15px", fontWeight:500}}>Nhân viên</th>
+                    <th style={{fontSize:"15px", fontWeight:500}}>Giờ Vào</th>
+                    <th style={{fontSize:"15px", fontWeight:500}}>Giờ Ra</th>
+                    <th style={{fontSize:"15px", fontWeight:500}}>Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamAttendance.length === 0 ? (
+                    <tr><td colSpan="4" style={{textAlign:"center"}}>Chưa có dữ liệu nhóm hoặc nhóm chưa có nhân viên</td></tr>
+                  ) : (
+                    teamAttendance.map((member) => (
+                      <tr key={member.id}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            {member.avatar_url ? (
+                              <img src={member.avatar_url} alt={member.full_name} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+                            ) : (
+                              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: "bold" }}>
+                                {member.full_name?.split(" ").slice(-1)[0][0] || "U"}
+                              </div>
+                            )}
+                            <span style={{ fontWeight: 500 }}>{member.full_name}</span>
+                          </div>
+                        </td>
+                        <td>{member.check_in_time ? new Date(member.check_in_time).toLocaleTimeString("vi-VN", {hour:"2-digit", minute:"2-digit"}) : "---"}</td>
+                        <td>{member.check_out_time ? new Date(member.check_out_time).toLocaleTimeString("vi-VN", {hour:"2-digit", minute:"2-digit"}) : "---"}</td>
+                        <td style={{color: member.status === "Đang Làm" ? "#eab308" : member.status === "Tan Làm" ? "#22c55e" : "var(--text-sub)", fontWeight: 600}}>
+                          {member.status || "Chưa Vào Làm"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
