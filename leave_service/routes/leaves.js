@@ -382,15 +382,22 @@ router.get("/schedule/weekly", async (req, res) => {
     const attendanceRes = await pool.query(attendanceQuery, leavesParams);
     const attendanceLogs = attendanceRes.rows;
 
+    // --- LẤY CẤU HÌNH NGÀY LỄ TỪ DB ---
+    const leavesSettingsRes = await pool.query("SELECT value FROM system_settings WHERE key = 'leaves'");
+    const holidaysStr = leavesSettingsRes.rows.length > 0 ? leavesSettingsRes.rows[0].value.holidays : "";
+    const holidayLines = holidaysStr.split('\n').filter(l => l.trim());
+
     // --- HÀM KIỂM TRA NGÀY LỄ ---
     const getHolidayReason = (dateStr) => {
-      if (dateStr >= "2026-02-16" && dateStr <= "2026-02-20") return "Tết Nguyên Đán 2026";
       const mmdd = dateStr.substring(5);
-      if (mmdd === "01-01") return "Tết Dương Lịch";
-      if (mmdd === "04-26") return "Giỗ Tổ Hùng Vương";
-      if (mmdd === "04-30") return "Giải Phóng Miền Nam";
-      if (mmdd === "05-01") return "Quốc Tế Lao Động";
-      if (mmdd === "09-02") return "Quốc Khánh";
+      for (let line of holidayLines) {
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+            const datePart = parts[0].trim();
+            const namePart = parts.slice(1).join(':').trim();
+            if (datePart === mmdd || datePart === dateStr) return namePart;
+        }
+      }
       return null;
     };
 

@@ -25,6 +25,9 @@ import SchedulePage from "./pages/SchedulePage";
 // IMPORT TRANG BẢNG LƯƠNG
 import SalaryPage from "./pages/SalaryPage";
 
+// IMPORT TRANG CÀI ĐẶT
+import SettingsPage from "./pages/SettingsPage";
+
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
@@ -133,6 +136,17 @@ function App() {
             <PrivateRoute>
               <MainLayout>
                 <SalaryPage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/admin/settings"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <SettingsPage />
               </MainLayout>
             </PrivateRoute>
           }

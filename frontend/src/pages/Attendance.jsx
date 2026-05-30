@@ -10,6 +10,7 @@ const Attendance =() =>{
   const token = localStorage.getItem("token");
   const [deviceId,setDeviceId] = useState("");
   const [teamAttendance, setTeamAttendance] = useState([]);
+  const [holidaysStr, setHolidaysStr] = useState("");
   const currentYear = calendarDate.getFullYear();
   const currentMonth = calendarDate.getMonth();
   const monthLabel = calendarDate.toLocaleDateString("vi-VN", { month: "long" });
@@ -49,12 +50,21 @@ const Attendance =() =>{
 
   // Kiểm tra ngày nghỉ & Lễ
   const getHolidayReason = (date) => {
-    const mmdd = String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
-    if (mmdd === "01-01") return "Tết Dương Lịch";
-    if (mmdd === "04-26") return "Giỗ Tổ Hùng Vương";
-    if (mmdd === "04-30") return "Giải Phóng Miền Nam";
-    if (mmdd === "05-01") return "Quốc Tế Lao Động";
-    if (mmdd === "09-02") return "Quốc Khánh";
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mmdd = `${mm}-${dd}`;
+    const fullDate = `${yyyy}-${mm}-${dd}`;
+    
+    const holidayLines = holidaysStr.split('\n').filter(l => l.trim());
+    for (let line of holidayLines) {
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+            const datePart = parts[0].trim();
+            const namePart = parts.slice(1).join(':').trim();
+            if (datePart === mmdd || datePart === fullDate) return namePart;
+        }
+    }
     return null;
   };
   const holidayReason = getHolidayReason(now);
@@ -69,6 +79,7 @@ const Attendance =() =>{
   useEffect(() => {
     fetchHistory(); // bổ trợ chho Kiểm tra log (todayLog)
     fetchTeamAttendance();
+    fetchHolidays();
   }, []);
 
   // Lấy hoặc tạo device_id khi component mount
@@ -81,6 +92,18 @@ const Attendance =() =>{
     }
     setDeviceId(storedDeviceId);
   }, []);
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await fetch("/api/auth_ser/settings/leaves", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHolidaysStr(data.holidays || "");
+      }
+    } catch (err) { console.log("Lỗi lấy danh sách ngày lễ", err); }
+  };
 
     // tính tổng số ngày trong tháng hiện 
   const workedDaysInCurrentMonth = workedDates.filter(dateString =>{

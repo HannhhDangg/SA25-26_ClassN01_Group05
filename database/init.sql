@@ -174,6 +174,21 @@ CREATE TABLE IF NOT EXISTS announcement_reads (
     PRIMARY KEY (announcement_id, user_id) -- Một người chỉ có 1 trạng thái đọc cho 1 thông báo
 );
 
+-- ==========================================
+-- PHẦN THÊM: QUẢN LÝ CẤU HÌNH HỆ THỐNG (SETTINGS)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS system_settings (
+    key VARCHAR(50) PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO system_settings (key, value) VALUES 
+('attendance', '{"checkInTime": "08:30", "checkOutTime": "17:00", "gracePeriod": 10, "validIPs": ""}'),
+('leaves', '{"defaultLeaveDays": 12, "holidays": "01-01: Tết Dương Lịch\n04-30: Giải Phóng Miền Nam\n05-01: Quốc Tế Lao Động\n09-02: Quốc Khánh\n2026-02-16: Nghỉ Tết Âm Lịch\n2026-02-17: Nghỉ Tết Âm Lịch\n2026-02-18: Nghỉ Tết Âm Lịch\n2026-02-19: Nghỉ Tết Âm Lịch\n2026-02-20: Nghỉ Tết Âm Lịch"}'),
+('payroll', '{"latePenalty": 50000, "unexcusedPenalty": 100000, "otMultiplier": 1.5}'),
+('general', '{"companyName": "HRM System", "logoUrl": "", "smtpHost": "smtp.gmail.com", "smtpPort": 587, "smtpUser": "hr@company.com"}')
+ON CONFLICT (key) DO NOTHING;
 
 -- ==========================================
 -- PHẦN 5: DỮ LIỆU KHỞI TẠO (SEED DATA)

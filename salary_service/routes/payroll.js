@@ -16,24 +16,6 @@ const authenticate = (req, res, next) => {
     }
 };
 
-// Hàm kiểm tra Lễ
-const getHolidayReason = (date) => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    const fullDate = `${yyyy}-${mm}-${dd}`;
-    
-    if (fullDate >= "2026-02-16" && fullDate <= "2026-02-20") return "Tết Nguyên Đán 2026";
-
-    const mmdd = mm + "-" + dd;
-    if (mmdd === "01-01") return "Tết Dương Lịch";
-    if (mmdd === "04-26") return "Giỗ Tổ Hùng Vương";
-    if (mmdd === "04-30") return "Giải Phóng Miền Nam";
-    if (mmdd === "05-01") return "Quốc Tế Lao Động";
-    if (mmdd === "09-02") return "Quốc Khánh";
-    return null;
-};
-
 // --- HÀM ĐỒNG BỘ LƯƠNG THỜI GIAN THỰC (REAL-TIME) ---
 // Được gọi tự động mỗi khi tải trang bảng lương
 const syncPayrollRealtime = async (year, month) => {
@@ -63,6 +45,28 @@ const syncPayrollRealtime = async (year, month) => {
 
         const today = new Date(new Date().getTime() + 7 * 3600 * 1000); // Lấy giờ VN
         today.setHours(0, 0, 0, 0);
+
+        // --- LẤY CẤU HÌNH NGÀY LỄ TỪ DB ---
+        const leavesSettingsRes = await pool.query("SELECT value FROM system_settings WHERE key = 'leaves'");
+        const holidaysStr = leavesSettingsRes.rows.length > 0 ? leavesSettingsRes.rows[0].value.holidays : "";
+        const holidayLines = holidaysStr.split('\n').filter(l => l.trim());
+        
+        const getHolidayReason = (date) => {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, "0");
+            const dd = String(date.getDate()).padStart(2, "0");
+            const mmdd = `${mm}-${dd}`;
+            const fullDate = `${yyyy}-${mm}-${dd}`;
+            for (let line of holidayLines) {
+                const parts = line.split(':');
+                if (parts.length >= 2) {
+                    const datePart = parts[0].trim();
+                    const namePart = parts.slice(1).join(':').trim();
+                    if (datePart === mmdd || datePart === fullDate) return namePart;
+                }
+            }
+            return null;
+        };
 
         // Xóa bảng lương nháp (DRAFT) cũ để tránh trùng lặp khi tính lại
         await pool.query(`DELETE FROM monthly_payrolls WHERE payroll_month = $1 AND payroll_year = $2 AND status = 'DRAFT'`, [month, year]);
