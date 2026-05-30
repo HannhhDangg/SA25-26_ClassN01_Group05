@@ -242,6 +242,29 @@ router.put("/:id/status", async (req, res) => {
       details: { full_name: data.full_name, reason_text: data.reason, start_date: data.start_date, end_date: data.end_date, total_days: data.total_days, old_status: "PENDING", new_status: status, rejection_reason: rejection_reason || null, status_at: new Date(), note: status === "APPROVED" ? "Sếp đã đồng ý duyệt đơn" : "Sếp đã từ chối đơn" },
     });
 
+    // 🔥 Ghi vào bảng announcements để tạo thông báo hệ thống cho nhân viên (Để đọc được khi online lại)
+    try {
+        const targetUserRes = await pool.query("SELECT email FROM users WHERE id = $1", [data.user_id]);
+        if (targetUserRes.rows.length > 0) {
+            const targetEmail = targetUserRes.rows[0].email;
+            const notiTitle = `Kết quả xét duyệt đơn nghỉ phép`;
+            let notiContent = `Đơn xin nghỉ phép của bạn (Lý do: ${data.reason}) từ ngày ${new Date(data.start_date).toLocaleDateString("vi-VN")} đến ${new Date(data.end_date).toLocaleDateString("vi-VN")} đã ${status === "APPROVED" ? "được DUYỆT ✅" : "bị TỪ CHỐI ❌"}.`;
+            
+            await pool.query(`
+                INSERT INTO announcements (title, content, sender_id, target_type, target_email)
+                VALUES ($1, $2, $3, 'INDIVIDUAL', $4)
+            `, [notiTitle, notiContent, currentUser.id, targetEmail]);
+
+            // Phát tín hiệu Real-time để quả chuông đỏ của Frontend cập nhật số lập tức
+            const io = req.app.get("socketio");
+            if (io) {
+                io.emit("new_announcement", { target_type: 'INDIVIDUAL', target_email: targetEmail });
+            }
+        }
+    } catch (err) {
+        console.error("Lỗi tạo thông báo kết quả duyệt đơn:", err);
+    }
+
     const io = req.app.get("socketio");
     if (io) {
       io.emit("leave_status_update", {
@@ -361,6 +384,7 @@ router.get("/schedule/weekly", async (req, res) => {
 
     // --- HÀM KIỂM TRA NGÀY LỄ ---
     const getHolidayReason = (dateStr) => {
+      if (dateStr >= "2026-02-16" && dateStr <= "2026-02-20") return "Tết Nguyên Đán 2026";
       const mmdd = dateStr.substring(5);
       if (mmdd === "01-01") return "Tết Dương Lịch";
       if (mmdd === "04-26") return "Giỗ Tổ Hùng Vương";
@@ -392,7 +416,7 @@ router.get("/schedule/weekly", async (req, res) => {
         const holidayReason = getHolidayReason(dateStr);
 
         // Lấy ngày tạo tài khoản trực tiếp từ DB format (Tránh lỗi múi giờ của Javascript làm lệch ngày)
-        const userCreatedAtStr = user.created_at_str || "2026-04-01";
+        const userCreatedAtStr = user.created_at_str || "2026-01-01";
 
         // Kiểm tra xem user này có đơn nghỉ phép APPROVED nào bao phủ ngày này không?
         const isOnLeave = leaves.find(l => {
@@ -438,9 +462,6 @@ router.get("/schedule/weekly", async (req, res) => {
           // Kiểm tra xem có dữ liệu chấm công THẬT từ CSDL không
           const actualLog = attendanceLogs.find(a => a.user_id === user.id && a.work_date_str === dateStr);
           
-          // 🔥 Mốc ngày fix cứng dữ liệu theo yêu cầu
-          const hardcodeLimit = "2026-05-29";
-
           // Nếu ngày đang xét là ngày TRƯỚC KHI nhân viên vào làm (trước ngày tạo TK)
           if (dateStr < userCreatedAtStr) {
             dayData.status = "NOT_JOINED";
@@ -466,8 +487,8 @@ router.get("/schedule/weekly", async (req, res) => {
                  const d = new Date(actualLog.check_in_time);
                  let h = d.getUTCHours();
                  let m = d.getUTCMinutes();
-                 // Phân biệt Seed Data (fix cứng giây = 0) và Dữ liệu thật (lưu theo UTC) để fix lệch múi giờ
-                 const isSeed = d.getUTCSeconds() === 0 && (h === 7 || h === 8 || h === 17);
+                 // Phân biệt Seed Data (Giây & Mili-giây = 0) và Dữ liệu thật (Có mili-giây) để fix lệch múi giờ 100% an toàn
+                 const isSeed = d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0 && (h === 7 || h === 8 || h === 17);
                  if (!isSeed) h = (h + 7) % 24; // Chuyển UTC -> VN Time
 
                  // Ca làm bắt đầu 8:30 sáng, cho trễ 10 phút -> 8:40
@@ -476,7 +497,7 @@ router.get("/schedule/weekly", async (req, res) => {
               if (actualLog.check_out_time) {
                  const d = new Date(actualLog.check_out_time);
                  let h = d.getUTCHours();
-                 const isSeed = d.getUTCSeconds() === 0 && (h === 7 || h === 8 || h === 17);
+                 const isSeed = d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0 && (h === 7 || h === 8 || h === 17);
                  if (!isSeed) h = (h + 7) % 24;
 
                  // Ca làm kết thúc 17:00 chiều (h > 10 để tránh nhầm với rạng sáng)
@@ -495,13 +516,8 @@ router.get("/schedule/weekly", async (req, res) => {
               }
               dayData.attendance_status = attStatus;
             }
-          } else if (dateStr <= hardcodeLimit && dateStr <= todayStr) {
-            // 🔥 Tự động báo đi làm đầy đủ BAO GỒM CẢ NGÀY HÔM NAY theo yêu cầu của bạn
-            dayData.check_in_time = `${dateStr}T08:00:00`;
-            dayData.check_out_time = `${dateStr}T17:00:00`;
-            dayData.attendance_status = "Đúng Giờ";
           } else if (dateStr < todayStr) {
-            // Quá khứ (sau 29/05) mà KHÔNG có log thật -> Đánh dấu nghỉ không phép
+            // Quá khứ mà KHÔNG có log thật -> Đánh dấu nghỉ không phép
             dayData.status = "UNEXCUSED";
             dayData.reason = "Không chấm công";
           } else if (dateStr === todayStr) {

@@ -11,11 +11,30 @@ const MainLayout = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
   const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState(0); // 🔥 THÊM STATE UNREAD NOTI
 
   const fetchPendingCount = useCallback(async (userObj) => {
-    if (!userObj || userObj.role === "STAFF" || !userObj.role) return;
+    if (!userObj || !userObj.role) return;
     try {
       const token = localStorage.getItem("token");
+
+      // Đề phòng tài khoản cũ lưu trong trình duyệt bị mất email/phòng ban
+      const safeEmail = userObj.email || "";
+      const safeDept = userObj.department_id || "";
+
+      // 🔥 Lấy thông báo chưa đọc cho TẤT CẢ các Role
+      const resNoti = await fetch(`/api/noti_ser/announcements?role=${userObj.role}&email=${safeEmail}&department_id=${safeDept}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (resNoti.ok) {
+        const dataNoti = await resNoti.json();
+        const unreadCount = Array.isArray(dataNoti) ? dataNoti.filter(a => !a.is_read).length : 0;
+        setUnreadAnnouncements(unreadCount);
+      }
+
+      // Nếu là STAFF thì dừng lại, không cần fetch pending leaves / pending users
+      if (userObj.role === "STAFF") return;
+
       const res = await fetch("/api/leave_ser/pending-count", {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -85,6 +104,23 @@ const MainLayout = ({ children }) => {
       }
     });
 
+    // 4. NGHE TIẾNG GỌI: Có thông báo chung mới!
+    socket.on("new_announcement", (data) => {
+        let shouldShow = false;
+        const safeEmail = user.email || "";
+        const safeDept = user.department_id || "";
+
+        if (data.target_type === "ALL") shouldShow = true;
+        if (data.target_type === "ROLE" && data.target_role === user.role) shouldShow = true;
+        if (data.target_type === "DEPT_STAFF" && user.role === "STAFF" && String(data.department_id) === String(safeDept)) shouldShow = true;
+        if (data.target_type === "INDIVIDUAL" && data.target_email === safeEmail) shouldShow = true;
+
+        if (shouldShow) {
+            fetchPendingCount(user);
+            toast.info("🔔 Bạn có một thông báo mới từ hệ thống!"); // Hiển thị popup góc phải
+        }
+    });
+
     return () => socket.disconnect();
   }, [fetchPendingCount]);
 
@@ -97,7 +133,7 @@ const MainLayout = ({ children }) => {
 
   return (
     <div className="dashboard-container">
-      <Sidebar pendingLeaves={pendingLeavesCount} pendingUsers={pendingUsersCount} />
+      <Sidebar pendingLeaves={pendingLeavesCount} pendingUsers={pendingUsersCount} unreadNoti={unreadAnnouncements} />
 
       <div className="main-content">
         <div className="top-header">
@@ -112,14 +148,14 @@ const MainLayout = ({ children }) => {
           >
             <FaBell size={15} />
             {/* THÔNG BÁO ĐỎ CỦA CHUÔNG */}
-            {(pendingLeavesCount + pendingUsersCount) > 0 && (
+            {(pendingLeavesCount + pendingUsersCount + unreadAnnouncements) > 0 && (
               <span style={{
                 position: "absolute", top: -6, right: -6, background: "#EF4444", color: "#fff",
                 fontSize: 10, fontWeight: "bold", minWidth: 16, height: 16, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
                 border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
               }}>
-                {pendingLeavesCount + pendingUsersCount}
+                {pendingLeavesCount + pendingUsersCount + unreadAnnouncements}
               </span>
             )}
           </div>

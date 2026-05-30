@@ -196,7 +196,7 @@ VALUES (
     'ACTIVE', 
     50000000, 
     1,
-    '2026-04-01 00:00:00'
+    '2026-01-01 00:00:00'
 );
 
 -- 3. Tạo Tài khoản Manager phòng Hành Chính Nhân Sự (ID phòng: 3)
@@ -210,7 +210,7 @@ VALUES (
     'ACTIVE', 
     25000000, 
     3,
-    '2026-04-01 00:00:00'
+    '2026-01-01 00:00:00'
 );
 
 -- 4. Tạo Tài khoản Manager phòng IT (ID phòng: 2)
@@ -224,7 +224,7 @@ VALUES (
     'ACTIVE', 
     30000000, 
     2,
-    '2026-04-01 00:00:00'
+    '2026-01-01 00:00:00'
 );
 
 -- 5. Tự động kết nối ID Trưởng phòng ngược lại vào bảng departments
@@ -244,7 +244,7 @@ VALUES (
     'ACTIVE',
     12000000,
     2,
-    '2026-04-01 00:00:00'
+    '2026-01-01 00:00:00'
 );
 
 -- Nhân viên 2: Thuộc phòng HCNS (department_id = 3)
@@ -259,7 +259,7 @@ VALUES (
     'ACTIVE',
     10000000,
     3,
-    '2026-04-01 00:00:00'
+    '2026-01-01 00:00:00'
 );
 
 -- 7. THÊM MỚI: Dữ liệu Đơn nghỉ phép mẫu (Seed data)
@@ -282,3 +282,78 @@ INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, 
 (5, CURRENT_DATE - INTERVAL '7 days', NULL, NULL, 'Không phép'),
 (5, CURRENT_DATE - INTERVAL '4 days', (CURRENT_DATE - INTERVAL '4 days') + TIME '08:00:00', (CURRENT_DATE - INTERVAL '4 days') + TIME '17:00:00', 'Tan Làm'),
 (5, CURRENT_DATE - INTERVAL '3 days', NULL, NULL, 'Vắng mặt');
+
+-- 9. THÊM MỚI: Tự động seed dữ liệu đi làm đầy đủ, đúng giờ cho toàn bộ nhân viên
+-- Từ 01/01/2026 đến ngày hiện tại. Bỏ qua Chủ Nhật và các ngày Lễ/Tết. Các dữ liệu seed thủ công ở trên (đi muộn, vắng mặt) sẽ KHÔNG bị ghi đè nhờ (ON CONFLICT DO NOTHING)
+INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, status)
+SELECT 
+    u.id, 
+    d.work_date::DATE, 
+    d.work_date + TIME '08:00:00', 
+    d.work_date + TIME '17:00:00', 
+    'Tan Làm'
+FROM users u
+CROSS JOIN generate_series('2026-01-01'::DATE, CURRENT_DATE, '1 day'::interval) AS d(work_date)
+WHERE EXTRACT(DOW FROM d.work_date) != 0 -- Bỏ Chủ Nhật
+  AND TO_CHAR(d.work_date, 'MM-DD') NOT IN ('01-01', '04-26', '04-30', '05-01', '09-02') -- Bỏ Lễ cố định
+  AND d.work_date::DATE NOT BETWEEN '2026-02-16'::DATE AND '2026-02-20'::DATE -- Bỏ Tết Nguyên Đán Bính Ngọ 2026
+ON CONFLICT (user_id, work_date) DO NOTHING;
+
+-- 10. THÊM MỚI: Tự động TÍNH LƯƠNG cho các tháng đã qua để đảm bảo dữ liệu nhất quán
+-- Logic này mô phỏng lại logic trong payroll.js, giả định các tháng đã qua đã được trả lương (status: PAID)
+
+-- Bước 1: Tạo một CTE để định nghĩa các tháng trong quá khứ cần tính lương
+WITH past_months AS (
+    SELECT 
+        EXTRACT(YEAR FROM month_series)::int AS payroll_year,
+        EXTRACT(MONTH FROM month_series)::int AS payroll_month
+    FROM generate_series(
+        '2026-01-01'::date, 
+        date_trunc('month', CURRENT_DATE) - interval '1 month', -- Chỉ tính đến tháng trước tháng hiện tại
+        '1 month'::interval
+    ) AS month_series
+),
+
+-- Bước 2: Tính ngày công chuẩn cho mỗi tháng trong quá khứ (Trừ Chủ Nhật và Ngày Lễ)
+standard_days_per_month AS (
+    SELECT
+        p.payroll_year,
+        p.payroll_month,
+        COUNT(d.day)::int as standard_work_days
+    FROM past_months p
+    CROSS JOIN LATERAL generate_series(
+        make_date(p.payroll_year, p.payroll_month, 1),
+        (make_date(p.payroll_year, p.payroll_month, 1) + interval '1 month - 1 day')::date,
+        '1 day'::interval
+    ) AS d(day)
+    WHERE EXTRACT(DOW FROM d.day) != 0 -- Bỏ Chủ Nhật
+      AND TO_CHAR(d.day, 'MM-DD') NOT IN ('01-01', '04-26', '04-30', '05-01', '09-02')
+      AND d.day::DATE NOT BETWEEN '2026-02-16'::DATE AND '2026-02-20'::DATE
+    GROUP BY p.payroll_year, p.payroll_month
+),
+
+-- Bước 3: Tổng hợp dữ liệu chấm công cho từng user, từng tháng
+payroll_data AS (
+    SELECT
+        u.id as user_id, pm.payroll_year, pm.payroll_month, u.base_salary,
+        COALESCE(s.standard_work_days, 24) as standard_work_days,
+        COALESCE(COUNT(al.id) FILTER (WHERE al.status IN ('Tan Làm', 'Đi Muộn', 'Về sớm')), 0)::int AS total_working_days,
+        COALESCE(COUNT(al.id) FILTER (WHERE al.status IN ('Đi Muộn', 'Về sớm')), 0)::int AS total_late_days,
+        COALESCE(COUNT(al.id) FILTER (WHERE al.status IN ('Không phép', 'Vắng mặt')), 0)::int AS total_unexcused_days
+    FROM past_months pm
+    CROSS JOIN users u
+    LEFT JOIN standard_days_per_month s ON s.payroll_year = pm.payroll_year AND s.payroll_month = pm.payroll_month
+    LEFT JOIN attendance_logs al ON al.user_id = u.id AND EXTRACT(YEAR FROM al.work_date) = pm.payroll_year AND EXTRACT(MONTH FROM al.work_date) = pm.payroll_month
+    WHERE u.status = 'ACTIVE' AND u.created_at < make_date(pm.payroll_year, pm.payroll_month, 1) + interval '1 month'
+    GROUP BY u.id, pm.payroll_year, pm.payroll_month, u.base_salary, s.standard_work_days
+)
+
+-- Bước 4: Tính toán lương và INSERT vào bảng monthly_payrolls
+INSERT INTO monthly_payrolls (user_id, payroll_month, payroll_year, base_salary, standard_work_days, total_working_days, total_leave_days, total_unpaid_leave_days, total_late_days, total_unexcused_days, total_bonus, total_penalty, net_salary, status)
+SELECT
+    pd.user_id, pd.payroll_month, pd.payroll_year, pd.base_salary, pd.standard_work_days, pd.total_working_days,
+    0, 0, pd.total_late_days, pd.total_unexcused_days, 0, (pd.total_late_days * 50000) + (pd.total_unexcused_days * 100000),
+    GREATEST(0, CASE WHEN pd.standard_work_days > 0 THEN (pd.base_salary / pd.standard_work_days) * pd.total_working_days ELSE 0 END - ((pd.total_late_days * 50000) + (pd.total_unexcused_days * 100000)))::decimal(15,2),
+    'PAID'
+FROM payroll_data pd
+ON CONFLICT (user_id, payroll_month, payroll_year) DO NOTHING;

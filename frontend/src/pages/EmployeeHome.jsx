@@ -11,6 +11,13 @@ const EmployeeHome = () => {
   const [balance, setBalance] = useState({ used: 0, max: 12, remaining: 12 });
   const token = localStorage.getItem("token");
 
+  const getDeptName = (deptId) => {
+    if (deptId === 1) return "Giám Đốc";
+    if (deptId === 2) return "Phòng IT";
+    if (deptId === 3) return "Phòng Hành Chính Nhân Sự";
+    return "Chưa phân phòng";
+  };
+
   const fetchData = useCallback(() => {
     fetch("/api/leave_ser/stats/today", {
       headers: { "Authorization": `Bearer ${token}` }
@@ -41,9 +48,15 @@ const EmployeeHome = () => {
   return (
     <div style={{ padding: "10px 20px", maxWidth: "1200px", margin: "0 auto" }}>
       {/* HEADER */}
-      <div style={{ marginBottom: 30, borderBottom: "1px solid var(--border)", paddingBottom: 15 }}>
-        <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text)" }}>Xin chào, {user.full_name || user.username}! 👋</div>
-        <div style={{ fontSize: 16, color: "var(--text-sub)", marginTop: 6 }}>Chúc bạn một ngày làm việc hiệu quả và tràn đầy năng lượng!</div>
+      <div style={{ marginBottom: 30, borderBottom: "1px solid var(--border)", paddingBottom: 15, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+        <div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text)" }}>Xin chào, {user.full_name || user.username}! 👋</div>
+          <div style={{ fontSize: 16, color: "var(--text-sub)", marginTop: 6 }}>Chúc bạn một ngày làm việc hiệu quả và tràn đầy năng lượng!</div>
+        </div>
+        <div style={{ background: "#F3F4F6", padding: "8px 16px", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
+          <span style={{ fontSize: 14, color: "#6B7280", fontWeight: 500 }}>Phòng ban: </span>
+          <span style={{ fontSize: 15, color: "#111827", fontWeight: 700 }}>{getDeptName(user.department_id)}</span>
+        </div>
       </div>
 
       {/* STATS SECTION */}

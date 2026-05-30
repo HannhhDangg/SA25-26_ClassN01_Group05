@@ -22,6 +22,9 @@ import AnnouncementPage from "./pages/AnnouncementPage";
 //trang lịch và ca làm
 import SchedulePage from "./pages/SchedulePage";
 
+// IMPORT TRANG BẢNG LƯƠNG
+import SalaryPage from "./pages/SalaryPage";
+
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
@@ -123,6 +126,17 @@ function App() {
             </PrivateRoute>
           }
         />
+        
+        <Route
+          path="/admin/salary"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <SalaryPage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
 
         {/* 🔥 ROUTE THÔNG BÁO CHO QUẢN LÝ / GIÁM ĐỐC */}
         <Route
@@ -198,6 +212,17 @@ function App() {
             <PrivateRoute>
               <MainLayout>
                 <SchedulePage />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/employee/salary"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <SalaryPage />
               </MainLayout>
             </PrivateRoute>
           }

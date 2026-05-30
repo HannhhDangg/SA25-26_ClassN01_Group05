@@ -66,3 +66,17 @@ services:
         paths:
           - /api/noti_ser
         strip_path: false
+
+  - name: salary-service
+    url: http://salary_service:3000
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60
+          limit_by: ip
+          policy: local
+    routes:
+      - name: salary-routes
+        paths:
+          - /api/salary_ser
+        strip_path: false

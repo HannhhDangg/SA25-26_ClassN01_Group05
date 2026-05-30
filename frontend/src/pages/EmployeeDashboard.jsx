@@ -144,15 +144,24 @@ const EmployeeDashboard = () => {
     >
       {/* ❌ ĐÃ XÓA: Phần hiển thị notify cũ (div fixed) ở đây */}
 
-      <h2
-        style={{
+      <div style={{
           borderBottom: "2px solid #ddd",
           paddingBottom: "15px",
           marginBottom: "30px",
-        }}
-      >
-        Xin chào, {user?.full_name || "Nhân viên"} 👋
-      </h2>
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+      }}>
+        <h2 style={{ margin: 0 }}>
+          Xin chào, {user?.full_name || "Nhân viên"} 👋
+        </h2>
+        <div style={{ background: "#F3F4F6", padding: "8px 16px", borderRadius: "8px", border: "1px solid #E5E7EB", fontWeight: "500" }}>
+          <span style={{ color: "#6B7280", fontSize: "14px" }}>Phòng ban: </span>
+          <span style={{ color: "#111827", fontSize: "15px", fontWeight: "bold" }}>
+            {user?.department_id === 1 ? "Giám Đốc" : user?.department_id === 2 ? "Phòng IT" : user?.department_id === 3 ? "Phòng Hành Chính Nhân Sự" : "Chưa phân phòng"}
+          </span>
+        </div>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "40px" }}>
         {/* FORM GỬI ĐƠN */}
