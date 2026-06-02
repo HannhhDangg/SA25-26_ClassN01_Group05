@@ -42,8 +42,22 @@ router.post("/verify-code", async (req, res) => {
 // 2 API History: Lấy lịch sử chấm công của nhân viên
 router.get("/history/:user_id",async(req,res)=>{
   const{user_id} = req.params;
-  try{
-    const result = await pool.query(`SELECT * FROM attendance_logs WHERE user_id = $1 ORDER BY work_date DESC LIMIT 30`,[user_id]);
+  const { start_date } = req.query;
+
+  try {
+    let query = `SELECT * FROM attendance_logs WHERE user_id = $1`;
+    let params = [user_id];
+
+    if (start_date) {
+      // Lọc dữ liệu trong khoảng 7 ngày (1 tuần) kể từ start_date
+      query += ` AND work_date >= $2 AND work_date < ($2::date + interval '7 days')`;
+      params.push(start_date);
+    }
+
+    query += ` ORDER BY work_date DESC`;
+    if (!start_date) query += ` LIMIT 30`; // Nếu không có ngày bắt đầu thì giới hạn 30 bản ghi
+
+    const result = await pool.query(query, params);
     res.json(result.rows);
   }catch(err){
     console.log("Lỗi lấy lịch sử chấm công", err);

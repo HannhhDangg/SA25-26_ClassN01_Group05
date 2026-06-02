@@ -9,6 +9,15 @@ const Attendance =() =>{
   const [logs, setLogs] = useState([]);
   const token = localStorage.getItem("token");
   const [deviceId,setDeviceId] = useState("");
+  const [historyTargetDate, setHistoryTargetDate] = useState(() => {
+    const d = new Date();
+    const day = d.getDay() || 7;
+    d.setDate(d.getDate() - (day - 1)); // Mặc định là Thứ 2 tuần này
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const dayStr = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${dayStr}`;
+  });
   const [teamAttendance, setTeamAttendance] = useState([]);
   const [holidaysStr, setHolidaysStr] = useState("");
   const currentYear = calendarDate.getFullYear();
@@ -77,10 +86,13 @@ const Attendance =() =>{
   },[]);
 
   useEffect(() => {
-    fetchHistory(); // bổ trợ chho Kiểm tra log (todayLog)
     fetchTeamAttendance();
     fetchHolidays();
   }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [historyTargetDate]);
 
   // Lấy hoặc tạo device_id khi component mount
   useEffect(() => {
@@ -218,10 +230,25 @@ const Attendance =() =>{
     setCalendarDate(new Date(currentYear, currentMonth + 1, 1));
   }
   
-  const fetchHistory = async() => {
-    if(!user.id)return;
-    try{
-      const res = await fetch(`/api/attendance/history/${user.id}`, {
+  const handlePrevWeekHistory = () => {
+    const d = new Date(historyTargetDate);
+    d.setDate(d.getDate() - 7);
+    setHistoryTargetDate(formatDateKey(d));
+  };
+
+  const handleNextWeekHistory = () => {
+    const d = new Date(historyTargetDate);
+    d.setDate(d.getDate() + 7);
+    setHistoryTargetDate(formatDateKey(d));
+  };
+
+  const fetchHistory = async () => {
+    if (!user.id) return;
+    // setLogs([]); // Tùy chọn: Xóa dữ liệu cũ để tránh nhầm lẫn khi đang load
+    try {
+      let url = `/api/attendance/history/${user.id}`;
+      if (historyTargetDate) url += `?start_date=${historyTargetDate}`;
+      const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if(res.ok){
@@ -386,7 +413,31 @@ const Attendance =() =>{
       </div>
 
       <div className="card">
-        <div style={{padding: "16px 20px", fontWeight: 600, fontSize: "20px", color: "var(--text)"}}> Lịch Sử Chấm Công</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ fontWeight: 600, fontSize: "20px", color: "var(--text)" }}> Lịch Sử Chấm Công</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button onClick={handlePrevWeekHistory} style={{ border: "1px solid var(--border)", background: "#fff", borderRadius: "4px", padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+              <FaChevronLeft size={12} />
+            </button>
+            <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--primary)", minWidth: "140px", textAlign: "center" }}>
+              Tuần từ {historyTargetDate ? new Date(historyTargetDate).toLocaleDateString("vi-VN") : "---"}
+            </span>
+            <button onClick={handleNextWeekHistory} style={{ border: "1px solid var(--border)", background: "#fff", borderRadius: "4px", padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+              <FaChevronRight size={12} />
+            </button>
+            <button 
+              onClick={() => {
+                const d = new Date();
+                const day = d.getDay() || 7;
+                d.setDate(d.getDate() - (day - 1));
+                setHistoryTargetDate(formatDateKey(d));
+              }}
+              style={{ marginLeft: 8, fontSize: "12px", padding: "6px 12px", border: "1px solid var(--primary)", borderRadius: "6px", background: "#fff", color: "var(--primary)", fontWeight: 600, cursor: "pointer" }}
+            >
+              Tuần này
+            </button>
+          </div>
+        </div>
         <div className="table-wrap-scroll">
             <table>
               <thead>
