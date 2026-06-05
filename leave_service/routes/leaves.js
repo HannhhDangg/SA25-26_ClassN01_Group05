@@ -343,13 +343,12 @@ router.get("/schedule/weekly", async (req, res) => {
 
     // Nếu không truyền start_date, tự tính Thứ 2 của tuần này trong Backend (Backup logic)
     if (!startDateParam) {
-      // Fix lỗi múi giờ: Lấy theo giờ VN và chỉ tác động đến ngày, không dùng toISOString() trực tiếp
-      const vnTime = new Date(new Date().getTime() + 7 * 3600 * 1000);
-      const day = vnTime.getUTCDay() || 7;
-      vnTime.setUTCDate(vnTime.getUTCDate() - (day - 1));
-      const year = vnTime.getUTCFullYear();
-      const month = String(vnTime.getUTCMonth() + 1).padStart(2, "0");
-      const d = String(vnTime.getUTCDate()).padStart(2, "0");
+      const vnTime = new Date();
+      const day = vnTime.getDay() || 7;
+      vnTime.setDate(vnTime.getDate() - (day - 1));
+      const year = vnTime.getFullYear();
+      const month = String(vnTime.getMonth() + 1).padStart(2, "0");
+      const d = String(vnTime.getDate()).padStart(2, "0");
       weekStart = `${year}-${month}-${d}`;
     }
 
@@ -401,8 +400,9 @@ router.get("/schedule/weekly", async (req, res) => {
       return null;
     };
 
-    // Lấy ngày hôm nay (theo giờ VN) để fix cứng dữ liệu chấm công cho quá khứ
-    const todayStr = new Date(new Date().getTime() + 7 * 3600 * 1000).toISOString().split('T')[0];
+    // Lấy ngày hôm nay
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     // 4. "Nhào nặn" (Map) dữ liệu: Tạo ma trận User x 7 Ngày
     const scheduleData = targetUsers.rows.map(user => {
@@ -492,20 +492,15 @@ router.get("/schedule/weekly", async (req, res) => {
               // Tự động tính toán lại Đi muộn / Về sớm từ giờ thực tế (Nếu DB không lưu late_minutes)
               if (actualLog.check_in_time) {
                  const d = new Date(actualLog.check_in_time);
-                 let h = d.getUTCHours();
-                 let m = d.getUTCMinutes();
-                 // Phân biệt Seed Data (Giây & Mili-giây = 0) và Dữ liệu thật (Có mili-giây) để fix lệch múi giờ 100% an toàn
-                 const isSeed = d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0 && (h === 7 || h === 8 || h === 17);
-                 if (!isSeed) h = (h + 7) % 24; // Chuyển UTC -> VN Time
+                 let h = d.getHours();
+                 let m = d.getMinutes();
 
                  // Ca làm bắt đầu 8:30 sáng, cho trễ 10 phút -> 8:40
                  if (h > 8 || (h === 8 && m > 40)) isLate = true;
               }
               if (actualLog.check_out_time) {
                  const d = new Date(actualLog.check_out_time);
-                 let h = d.getUTCHours();
-                 const isSeed = d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0 && (h === 7 || h === 8 || h === 17);
-                 if (!isSeed) h = (h + 7) % 24;
+                 let h = d.getHours();
 
                  // Ca làm kết thúc 17:00 chiều (h > 10 để tránh nhầm với rạng sáng)
                  if (h < 17) isEarly = true;

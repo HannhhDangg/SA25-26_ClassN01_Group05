@@ -278,40 +278,46 @@ VALUES (
 );
 
 -- 7. THÊM MỚI: Dữ liệu Đơn nghỉ phép mẫu (Seed data)
-INSERT INTO leave_requests (user_id, leave_type, reason, start_date, end_date, total_days, status, approver_id) VALUES
--- Đơn đã duyệt (Trong 14 ngày qua)
-(4, 'SICK', 'Bị sốt siêu vi, xin nghỉ ở nhà điều trị', CURRENT_DATE - INTERVAL '12 days', CURRENT_DATE - INTERVAL '12 days', 1, 'APPROVED', 3),
-(5, 'ANNUAL', 'Về quê có việc gia đình', CURRENT_DATE - INTERVAL '10 days', CURRENT_DATE - INTERVAL '9 days', 2, 'APPROVED', 2),
--- Đơn chờ duyệt (Để hiển thị ở phần duyệt đơn)
-(4, 'ANNUAL', 'Xin nghỉ đi khám bệnh tổng quát', CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE + INTERVAL '2 days', 1, 'PENDING', NULL),
-(5, 'UNPAID', 'Nhà có việc đột xuất', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE + INTERVAL '3 days', 1, 'PENDING', NULL);
+INSERT INTO leave_requests (user_id, leave_type, reason, start_date, end_date, total_days, status, approver_id, rejection_reason) VALUES
+-- Hanh (ID 5) - Đơn đã duyệt trong quá khứ
+(5, 'ANNUAL', 'Về quê có việc gia đình', '2026-05-18', '2026-05-19', 2, 'APPROVED', 2, NULL),
+-- Hank (ID 4) - Đơn bị từ chối trong quá khứ
+(4, 'UNPAID', 'Xin nghỉ để đi xem phim', '2026-05-25', '2026-05-25', 1, 'REJECTED', 3, 'Lý do không chính đáng.'),
+-- Hank (ID 4) - Đơn đã duyệt cho tuần tới, sẽ ảnh hưởng bảng chấm công
+(4, 'ANNUAL', 'Đi du lịch cùng gia đình', '2026-06-08', '2026-06-09', 2, 'APPROVED', 3, NULL),
+-- Hanh (ID 5) - Đơn đang chờ duyệt, để test tính năng duyệt đơn của Manager
+(5, 'SICK', 'Bị cảm, cần đi khám bác sĩ', '2026-06-15', '2026-06-15', 1, 'PENDING', NULL, NULL),
+-- Manager IT (ID 3) - Đơn đang chờ duyệt, để test tính năng duyệt đơn của Superadmin
+(3, 'ANNUAL', 'Nghỉ phép năm', '2026-06-16', '2026-06-17', 2, 'PENDING', NULL, NULL);
 
 -- 8. THÊM MỚI: Dữ liệu Chấm công mẫu (Seed data)
-INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, status) VALUES
--- Nhân viên Hank Nguyễn (ID: 4)
-(4, CURRENT_DATE - INTERVAL '8 days', NULL, NULL, 'Không phép'),
-(4, CURRENT_DATE - INTERVAL '5 days', (CURRENT_DATE - INTERVAL '5 days') + TIME '08:15:00', (CURRENT_DATE - INTERVAL '5 days') + TIME '17:00:00', 'Đi Muộn'),
-(4, CURRENT_DATE - INTERVAL '2 days', NULL, NULL, 'Vắng mặt'),
-
--- Nhân viên Hanh Nguyễn (ID: 5)
-(5, CURRENT_DATE - INTERVAL '7 days', NULL, NULL, 'Không phép'),
-(5, CURRENT_DATE - INTERVAL '4 days', (CURRENT_DATE - INTERVAL '4 days') + TIME '08:00:00', (CURRENT_DATE - INTERVAL '4 days') + TIME '17:00:00', 'Tan Làm'),
-(5, CURRENT_DATE - INTERVAL '3 days', NULL, NULL, 'Vắng mặt');
+-- Các bản ghi này sẽ được ưu tiên vì được chèn trước và bước 9 có 'ON CONFLICT DO NOTHING'
+INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, status, late_minutes, early_leave_minutes) VALUES
+-- Hank (ID 4) đi muộn
+(4, '2026-06-02', '2026-06-02 08:45:10', '2026-06-02 17:05:00', 'Đi Muộn', 15, 0),
+-- Hanh (ID 5) về sớm
+(5, '2026-06-04', '2026-06-04 08:01:00', '2026-06-04 16:30:00', 'Về sớm', 0, 30),
+-- Hank (ID 4) vắng không phép
+(4, '2026-05-20', NULL, NULL, 'Không phép', 0, 0);
 
 -- 9. THÊM MỚI: Tự động seed dữ liệu đi làm đầy đủ, đúng giờ cho toàn bộ nhân viên
--- Từ 01/01/2026 đến ngày hiện tại. Bỏ qua Chủ Nhật và các ngày Lễ/Tết. Các dữ liệu seed thủ công ở trên (đi muộn, vắng mặt) sẽ KHÔNG bị ghi đè nhờ (ON CONFLICT DO NOTHING)
+-- Từ 01/01/2026 đến ngày 18/06/2026. Bỏ qua Chủ Nhật, Lễ/Tết, và ngày đã có đơn nghỉ phép được duyệt.
 INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, status)
 SELECT 
     u.id, 
     d.work_date::DATE, 
     d.work_date + TIME '08:00:00', 
     d.work_date + TIME '17:00:00', 
-    'Tan Làm'
+    'Tan Làm' 
 FROM users u
-CROSS JOIN generate_series('2026-01-01'::DATE, CURRENT_DATE, '1 day'::interval) AS d(work_date)
-WHERE EXTRACT(DOW FROM d.work_date) != 0 -- Bỏ Chủ Nhật
-  AND TO_CHAR(d.work_date, 'MM-DD') NOT IN ('01-01', '04-26', '04-30', '05-01', '09-02') -- Bỏ Lễ cố định
+CROSS JOIN generate_series('2026-01-01'::DATE, '2026-06-18'::DATE, '1 day'::interval) AS d(work_date)
+LEFT JOIN leave_requests lr ON u.id = lr.user_id AND lr.status = 'APPROVED' AND d.work_date::DATE BETWEEN lr.start_date AND lr.end_date
+WHERE u.status = 'ACTIVE' -- Chỉ seed cho nhân viên đang hoạt động
+  AND d.work_date::DATE >= u.created_at::DATE -- Chỉ seed từ ngày nhân viên vào làm
+  AND EXTRACT(DOW FROM d.work_date) != 0 -- Bỏ Chủ Nhật
+  AND TO_CHAR(d.work_date, 'MM-DD') NOT IN ('01-01', '04-30', '05-01', '09-02') -- Bỏ Lễ cố định
   AND d.work_date::DATE NOT BETWEEN '2026-02-16'::DATE AND '2026-02-20'::DATE -- Bỏ Tết Nguyên Đán Bính Ngọ 2026
+  AND lr.id IS NULL -- Chỉ insert nếu ngày đó không phải là ngày nghỉ phép đã được duyệt
 ON CONFLICT (user_id, work_date) DO NOTHING;
 
 -- 10. THÊM MỚI: Tự động TÍNH LƯƠNG cho các tháng đã qua để đảm bảo dữ liệu nhất quán

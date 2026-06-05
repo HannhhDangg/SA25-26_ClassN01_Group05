@@ -57,6 +57,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./auth_service:/app
       - /app/node_modules
@@ -85,6 +86,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
@@ -112,6 +114,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./noti_service:/app
       - /app/node_modules
@@ -138,6 +141,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     depends_on:
       - haproxy
       - mongo-init
@@ -158,6 +162,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./salary_service:/app
       - /app/node_modules
@@ -204,6 +209,7 @@ services:
       - ETCD3_HOSTS=etcd:2379
       - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA: Mật khẩu chuẩn theo Spilo Zalando
       - PATRONI_NAME=pg1
+      - TZ=Asia/Ho_Chi_Minh
       - SPILO_PROVIDER=local
     ports:
       - "5432"
@@ -226,6 +232,7 @@ services:
       - ETCD3_HOSTS=etcd:2379
       - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA
       - PATRONI_NAME=pg2
+      - TZ=Asia/Ho_Chi_Minh
       - SPILO_PROVIDER=local
     ports:
       - "5432"
@@ -242,6 +249,7 @@ services:
       - ETCD3_HOSTS=etcd:2379
       - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA
       - PATRONI_NAME=pg3
+      - TZ=Asia/Ho_Chi_Minh
       - SPILO_PROVIDER=local
     ports:
       - "5432"
