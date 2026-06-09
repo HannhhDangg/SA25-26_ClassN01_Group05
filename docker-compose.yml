@@ -57,6 +57,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./auth_service:/app
       - /app/node_modules
@@ -86,6 +87,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
@@ -114,6 +116,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./noti_service:/app
       - /app/node_modules
@@ -141,17 +144,6 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
-    volumes:
-      - ./attendance_service:/app
-      - /app/node_modules
-    command: sh -c "npm install && npm start"
-    healthcheck:
-      # Sử dụng node để check nếu image không có wget/curl (cách này luôn chạy được với Node image)
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/attendance/health', (r) => { if (r.statusCode === 200) process.exit(0); else process.exit(1); })"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
     depends_on:
       haproxy:
         condition: service_started
@@ -177,6 +169,7 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./salary_service:/app
       - /app/node_modules
@@ -225,6 +218,7 @@ services:
       - ETCD3_HOSTS=etcd:2379
       - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA: Mật khẩu chuẩn theo Spilo Zalando
       - PATRONI_NAME=pg1
+      - TZ=Asia/Ho_Chi_Minh
       - SPILO_PROVIDER=local
     ports:
       - "5432"
@@ -247,6 +241,7 @@ services:
       - ETCD3_HOSTS=etcd:2379
       - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA
       - PATRONI_NAME=pg2
+      - TZ=Asia/Ho_Chi_Minh
       - SPILO_PROVIDER=local
     ports:
       - "5432"
@@ -263,6 +258,7 @@ services:
       - ETCD3_HOSTS=etcd:2379
       - PGPASSWORD_SUPERUSER=rootpassword # ✅ ĐÃ SỬA
       - PATRONI_NAME=pg3
+      - TZ=Asia/Ho_Chi_Minh
       - SPILO_PROVIDER=local
     ports:
       - "5432"

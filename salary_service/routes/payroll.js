@@ -43,7 +43,7 @@ const syncPayrollRealtime = async (year, month) => {
         `, [month, year]);
         const allLeaves = leavesRes.rows;
 
-        const today = new Date(new Date().getTime() + 7 * 3600 * 1000); // Lấy giờ VN
+        const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         // --- LẤY CẤU HÌNH NGÀY LỄ TỪ DB ---
@@ -135,19 +135,15 @@ const syncPayrollRealtime = async (year, month) => {
                     // Tính đi muộn
                     if (log.check_in_time) {
                         const d = new Date(log.check_in_time);
-                        let h = d.getUTCHours();
-                        let m = d.getUTCMinutes();
-                        const isSeed = d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0 && (h === 7 || h === 8 || h === 17);
-                        if (!isSeed) h = (h + 7) % 24; // Fix múi giờ cho Data thật
+                        let h = d.getHours();
+                        let m = d.getMinutes();
                         if (h > 8 || (h === 8 && m > 40)) isLate = true;
                     }
 
                     // Tính về sớm / Tăng ca
                     if (log.check_out_time) {
                         const d = new Date(log.check_out_time);
-                        let h = d.getUTCHours();
-                        const isSeed = d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0 && (h === 7 || h === 8 || h === 17);
-                        if (!isSeed) h = (h + 7) % 24;
+                        let h = d.getHours();
                         
                         if (h < 17 && h > 10) isEarly = true; // Về sớm
                         if (h >= 18) totalBonus += (dailySalary / 8) * 1.5; // Tăng ca sau 18h thưởng 1.5h lương
