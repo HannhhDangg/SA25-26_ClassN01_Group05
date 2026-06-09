@@ -5,7 +5,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy file khai báo thư viện trước (để tận dụng cache của Docker)
-COPY package.json ./
+COPY package*.json ./
 
 # Cài đặt thư viện
 RUN npm install

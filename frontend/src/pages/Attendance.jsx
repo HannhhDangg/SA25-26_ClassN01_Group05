@@ -452,11 +452,11 @@ const Attendance =() =>{
                 {logs.length === 0 ? (
                   <tr></tr>
                 ) : (
-                  logs.map((log)=>(
+                  logs.map((log) => (
                     <tr key={log.id}>
-                      <td>{new Date(log.work_date).toLocaleDateString("vi-VN")}</td>
-                      <td>{log.check_in_time ? new Date(log.check_in_time).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}) : "---"}</td>
-                      <td>{log.check_out_time ? new Date(log.check_out_time).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}) : "---"}</td>
+                      <td>{new Date(log.work_date).toLocaleDateString("vi-VN", { timeZone: "UTC" })}</td>
+                      <td>{log.check_in_time ? new Date(log.check_in_time).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "---"}</td>
+                      <td>{log.check_out_time ? new Date(log.check_out_time).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "---"}</td>
                       <td style={{color: log.status === "Đang Làm" ? "#eab308" : log.status === "Tan Làm" ? "#22c55e" : "var(--text)", fontWeight:600}}>
                         {log.status}
                       </td>
@@ -500,8 +500,8 @@ const Attendance =() =>{
                             <span style={{ fontWeight: 500 }}>{member.full_name}</span>
                           </div>
                         </td>
-                        <td>{member.check_in_time ? new Date(member.check_in_time).toLocaleTimeString("vi-VN", {hour:"2-digit", minute:"2-digit"}) : "---"}</td>
-                        <td>{member.check_out_time ? new Date(member.check_out_time).toLocaleTimeString("vi-VN", {hour:"2-digit", minute:"2-digit"}) : "---"}</td>
+                        <td>{member.check_in_time ? new Date(member.check_in_time).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "---"}</td>
+                        <td>{member.check_out_time ? new Date(member.check_out_time).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "---"}</td>
                         <td style={{color: member.status === "Đang Làm" ? "#eab308" : member.status === "Tan Làm" ? "#22c55e" : "var(--text-sub)", fontWeight: 600}}>
                           {member.status || "Chưa Vào Làm"}
                         </td>

@@ -60,6 +60,7 @@ services:
     volumes:
       - ./auth_service:/app
       - /app/node_modules
+    command: sh -c "npm install && npm start" # Đảm bảo thư viện được cài đặt vào anonymous volume
     depends_on:
       haproxy:
         condition: service_started
@@ -88,7 +89,8 @@ services:
     volumes:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
-      - /app/node_modules # do máy chưa chạy npm install nên node_modules chưa có, tạo volume để tránh lỗi
+      - /app/node_modules
+    command: sh -c "npm install && npm start"
     depends_on:
       haproxy:
         condition: service_started
@@ -115,6 +117,7 @@ services:
     volumes:
       - ./noti_service:/app
       - /app/node_modules
+    command: sh -c "npm install && npm start"
     depends_on:
       haproxy:
         condition: service_started
@@ -138,10 +141,26 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+    volumes:
+      - ./attendance_service:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm start"
+    healthcheck:
+      # Sử dụng node để check nếu image không có wget/curl (cách này luôn chạy được với Node image)
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/attendance/health', (r) => { if (r.statusCode === 200) process.exit(0); else process.exit(1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
-      - haproxy
-      - mongo-init
-      - redis
+      haproxy:
+        condition: service_started
+      postgres-1:
+        condition: service_healthy
+      mongo-init:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - app-network
 
@@ -161,6 +180,7 @@ services:
     volumes:
       - ./salary_service:/app
       - /app/node_modules
+    command: sh -c "npm install && npm start"
     depends_on:
       haproxy:
         condition: service_started
@@ -178,10 +198,11 @@ services:
       - VITE_APP_API_URL=http://localhost:80
     # XÓA DÒNG "command: ..." cũ đi, vì file vite.config.js đã tự lo rồi
     ports:
-      - "3000:3000"
+      - "3001:3000" # Đổi sang 3001 để tránh trùng với Grafana (3000)
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    command: sh -c "npm install && npm run dev"
     stdin_open: true
     tty: true
     networks:
@@ -265,8 +286,7 @@ services:
       - postgres-3
     networks:
       - app-network
-
-  # =========================================================
+      # =========================================================
   # 4. MONGODB REPLICA SET (HA)
   # =========================================================
   mongo-1:
@@ -325,3 +345,110 @@ services:
     restart: always
     networks:
       - app-network
+
+  # =========================================================
+  # 6. MONITORING STACK (PROMETHEUS & GRAFANA)
+  # =========================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-storage:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    depends_on:
+      - blackbox_exporter
+      - alertmanager
+    networks:
+      - app-network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - app-network
+
+  blackbox_exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: blackbox_exporter
+    restart: always
+    ports:
+      - "9115:9115"
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000" # Grafana chiếm cổng 3000 (Frontend đã đổi sang 3001)
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "admin123"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./grafana-dashboard.json:/etc/grafana/provisioning/dashboards/hrm-health.json:ro
+      - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+    depends_on:
+      - prometheus
+    networks:
+      - app-network
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    restart: always
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+    networks:
+      - app-network
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres_exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:rootpassword@postgres-1:5432/postgres?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - app-network
+
+  redis_exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis_exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - app-network
+
+  mongodb_exporter:
+    image: percona/mongodb_exporter:0.40.0
+    container_name: mongodb_exporter
+    command: ["--compatible-mode"]
+    environment:
+      - MONGODB_URI=mongodb://mongo-1:27017/?directConnection=true
+    ports:
+      - "9216:9216"
+    networks:
+      - app-network
+
+volumes:
+  grafana-storage:
+  prometheus-storage:

@@ -1,0 +1,95 @@
+global:
+  scrape_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node_exporter:9100']
+        labels:
+          env: 'production'
+
+  - job_name: 'attendance_service'
+    metrics_path: '/api/attendance/metrics'
+    static_configs:
+      - targets: ['attendance_service:3000']
+        labels:
+          env: 'production'
+
+  - job_name: 'auth_service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['auth_service:3000']
+        labels:
+          env: 'production'
+
+  - job_name: 'leave_service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['leave_service:3000']
+        labels:
+          env: 'production'
+
+  - job_name: 'salary_service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['salary_service:3000']
+        labels:
+          env: 'production'
+
+  - job_name: 'noti_service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['noti_service:3000']
+        labels:
+          env: 'production'
+
+  - job_name: 'service-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://attendance_service:3000/api/attendance/health
+        - http://auth_service:3000/health
+        - http://leave_service:3000/health
+        - http://salary_service:3000/health
+        - http://noti_service:3000/health
+        labels:
+          env: 'production'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: blackbox_exporter:9115
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres_exporter:9187']
+        labels:
+          env: 'production'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis_exporter:9121']
+        labels:
+          env: 'production'
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb_exporter:9216']
+        labels:
+          env: 'production'
+
+  - job_name: 'kong'
+    static_configs:
+      - targets: ['api-gateway:8001']
+        labels:
+          env: 'production'

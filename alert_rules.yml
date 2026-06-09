@@ -1,0 +1,11 @@
+groups:
+  - name: health_alerts
+    rules:
+      - alert: service_health_check_failed
+        expr: probe_success == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service down: {{ $labels.instance }}"
+          description: "Service health check failed for more than 1 minute."

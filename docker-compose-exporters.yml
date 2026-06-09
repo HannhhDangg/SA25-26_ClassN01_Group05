@@ -1,0 +1,31 @@
+version: "3"
+services:
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres_exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:rootpassword@haproxy:5000/postgres?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - app-network
+
+  redis_exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis_exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - app-network
+
+  mongodb_exporter:
+    image: percona/mongodb_exporter:0.40.0
+    container_name: mongodb_exporter
+    environment:
+      - MONGODB_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/?replicaSet=rs0
+    ports:
+      - "9216:9216"
+    networks:
+      - app-network
