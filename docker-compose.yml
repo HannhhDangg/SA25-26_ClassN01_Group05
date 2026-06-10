@@ -58,6 +58,11 @@ services:
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
       - TZ=Asia/Ho_Chi_Minh
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     volumes:
       - ./auth_service:/app
       - /app/node_modules
@@ -418,7 +423,7 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres_exporter
     environment:
-      - DATA_SOURCE_NAME=postgresql://postgres:rootpassword@postgres-1:5432/postgres?sslmode=require
+      - DATA_SOURCE_NAME=postgresql://postgres:rootpassword@haproxy:5000/postgres?sslmode=disable
     ports:
       - "9187:9187"
     networks:

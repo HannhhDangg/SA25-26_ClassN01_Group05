@@ -1,9 +1,29 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK' # Thay bằng webhook thật
+
 route:
-  group_by: ['alertname']
+  group_by: ['alertname', 'severity']
   group_wait: 30s
   group_interval: 5m
-  repeat_interval: 1h
-  receiver: 'web.terminate'
+  repeat_interval: 3h
+  receiver: 'slack-notifications'
+
 receivers:
-- name: 'web.terminate'
-  # You can add email, slack, or telegram configs here later
+  - name: 'slack-notifications'
+    slack_configs:
+      - channel: '#alerts' # Channel nhận thông báo
+        send_resolved: true
+        icon_emoji: ':robot_face:'
+        title: '[[{{ .Status | upper }}]] {{ .CommonAnnotations.summary }}'
+        text: >-
+          *Mô tả:* {{ .CommonAnnotations.description }}
+          *Mức độ:* `{{ .CommonLabels.severity }}`
+          *Instance:* {{ .CommonLabels.instance }}
+        actions:
+          - type: button
+            text: 'Mở Grafana'
+            url: 'http://localhost:3000'
+          - type: button
+            text: 'Mở Prometheus'
+            url: 'http://localhost:9090'

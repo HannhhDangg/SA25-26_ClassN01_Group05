@@ -1,11 +1,15 @@
 groups:
-  - name: health_alerts
+  - name: hr_system_alerts
     rules:
-      - alert: service_health_check_failed
-        expr: probe_success == 0
+      - alert: ServiceDown
+        expr: up == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Service down: {{ $labels.instance }}"
-          description: "Service health check failed for more than 1 minute."
+          summary: "Dịch vụ {{ $labels.job }} đang bị sập!"
+          description: "Service {{ $labels.instance }} thuộc môi trường {{ $labels.env }} không phản hồi trong hơn 1 phút."
+
+      - alert: HighCpuUsage
+        expr: node_cpu_seconds_total / count(node_cpu_seconds_total) > 0.8
+        for: 5m

@@ -1,0 +1,334 @@
+[2026-06-10 16:47:08] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:47:08] [INFO] Mode: FULL BACKUP
+[2026-06-10 16:47:08] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:47:08] [INFO] Running pg_basebackup...
+[2026-06-10 16:47:08] [ERROR] pg_basebackup failed
+[2026-06-10 16:47:08] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_auth_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_attendance_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_salary_db failed
+[2026-06-10 16:47:08] [ERROR] Failed to retrieve PostgreSQL LSN
+[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?
+[2026-06-10 16:47:08] [INFO] Cleaning up old backups (FULL: 30d, INC: 7d, LOGS: 30d)
+[2026-06-10 16:47:08] [INFO] Backup completed successfully.
+[2026-06-10 16:47:08] [INFO] === Backup Job Finished ===
+[2026-06-10 16:49:44] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:49:44] [INFO] Mode: INCREMENTAL BACKUP
+[2026-06-10 16:49:44] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-49 (Since LSN: [2026-06-10 16:47:08] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:47:08] [INFO] Running pg_basebackup...
+[2026-06-10 16:47:08] [ERROR] pg_basebackup failed
+[2026-06-10 16:47:08] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_auth_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_attendance_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_salary_db failed
+[2026-06-10 16:47:08] [ERROR] Failed to retrieve PostgreSQL LSN)
+[2026-06-10 16:49:44] [INFO] Forcing PostgreSQL checkpoint and switching WAL...
+[2026-06-10 16:49:44] [INFO] Using logical dump fallback for incremental as WAL file copy requires direct fs access which might not be guaranteed.
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_auth_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_attendance_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_salary_db failed
+[2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?,[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed
+[2026-06-10 16:49:44] [INFO] Cleaning up old backups (FULL: 30d, INC: 7d, LOGS: 30d)
+[2026-06-10 16:49:45] [INFO] Backup completed successfully.
+[2026-06-10 16:49:45] [INFO] === Backup Job Finished ===
+[2026-06-10 16:52:05] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:52:05] [INFO] Mode: INCREMENTAL BACKUP
+[2026-06-10 16:52:05] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-52 (Since LSN: [2026-06-10 16:49:44] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-49 (Since LSN: [2026-06-10 16:47:08] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:47:08] [INFO] Running pg_basebackup...
+[2026-06-10 16:47:08] [ERROR] pg_basebackup failed
+[2026-06-10 16:47:08] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_auth_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_attendance_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_salary_db failed
+[2026-06-10 16:47:08] [ERROR] Failed to retrieve PostgreSQL LSN)
+[2026-06-10 16:49:44] [INFO] Forcing PostgreSQL checkpoint and switching WAL...
+[2026-06-10 16:49:44] [INFO] Using logical dump fallback for incremental as WAL file copy requires direct fs access which might not be guaranteed.
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_auth_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_attendance_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_salary_db failed)
+[2026-06-10 16:52:05] [INFO] Forcing PostgreSQL checkpoint...
+[2026-06-10 16:52:05] [INFO] Generating incremental fallback (Logical Dumps) via docker...
+[2026-06-10 16:53:48] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:53:48] [INFO] Mode: INCREMENTAL BACKUP
+[2026-06-10 16:53:48] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-53 (Since LSN: [2026-06-10 16:49:44] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-49 (Since LSN: [2026-06-10 16:47:08] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:47:08] [INFO] Running pg_basebackup...
+[2026-06-10 16:47:08] [ERROR] pg_basebackup failed
+[2026-06-10 16:47:08] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_auth_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_attendance_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_salary_db failed
+[2026-06-10 16:47:08] [ERROR] Failed to retrieve PostgreSQL LSN)
+[2026-06-10 16:49:44] [INFO] Forcing PostgreSQL checkpoint and switching WAL...
+[2026-06-10 16:49:44] [INFO] Using logical dump fallback for incremental as WAL file copy requires direct fs access which might not be guaranteed.
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_auth_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_attendance_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_salary_db failed)
+[2026-06-10 16:53:48] [INFO] Forcing PostgreSQL checkpoint...
+[2026-06-10 16:53:48] [INFO] Generating incremental fallback (Logical Dumps) via docker...
+[2026-06-10 16:53:48] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-53 (Since TS: [2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?,[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed)
+[2026-06-10 16:53:48] [INFO] Dumping oplog since [2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed,[2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed...
+[2026-06-10 16:53:48] [WARN] mongodump oplog failed. Falling back.
+[2026-06-10 16:54:09] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:54:09] [INFO] Mode: INCREMENTAL BACKUP
+[2026-06-10 16:54:09] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-54 (Since LSN: [2026-06-10 16:49:44] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-49 (Since LSN: [2026-06-10 16:47:08] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:47:08] [INFO] Running pg_basebackup...
+[2026-06-10 16:47:08] [ERROR] pg_basebackup failed
+[2026-06-10 16:47:08] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_auth_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_attendance_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_salary_db failed
+[2026-06-10 16:47:08] [ERROR] Failed to retrieve PostgreSQL LSN)
+[2026-06-10 16:49:44] [INFO] Forcing PostgreSQL checkpoint and switching WAL...
+[2026-06-10 16:49:44] [INFO] Using logical dump fallback for incremental as WAL file copy requires direct fs access which might not be guaranteed.
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_auth_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_attendance_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_salary_db failed)
+[2026-06-10 16:54:09] [INFO] Forcing PostgreSQL checkpoint...
+[2026-06-10 16:54:09] [INFO] Generating incremental fallback (Logical Dumps) via docker...
+[2026-06-10 16:54:09] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-54 (Since TS: [2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?,[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed)
+[2026-06-10 16:54:09] [INFO] Dumping oplog since [2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed,[2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed...
+[2026-06-10 16:54:09] [WARN] mongodump oplog failed. Falling back.
+[2026-06-10 16:55:29] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:55:29] [INFO] Mode: INCREMENTAL BACKUP
+[2026-06-10 16:55:29] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-55 (Since LSN: [2026-06-10 16:49:44] [INFO] Starting PostgreSQL INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/postgres/2026-06-10_16-49 (Since LSN: [2026-06-10 16:47:08] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:47:08] [INFO] Running pg_basebackup...
+[2026-06-10 16:47:08] [ERROR] pg_basebackup failed
+[2026-06-10 16:47:08] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_auth_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_attendance_db failed
+[2026-06-10 16:47:08] [ERROR] pg_dump schema for hr_salary_db failed
+[2026-06-10 16:47:08] [ERROR] Failed to retrieve PostgreSQL LSN)
+[2026-06-10 16:49:44] [INFO] Forcing PostgreSQL checkpoint and switching WAL...
+[2026-06-10 16:49:44] [INFO] Using logical dump fallback for incremental as WAL file copy requires direct fs access which might not be guaranteed.
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_auth_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_attendance_db failed
+[2026-06-10 16:49:44] [ERROR] pg_dump (fallback) for hr_salary_db failed)
+[2026-06-10 16:55:29] [INFO] Forcing PostgreSQL checkpoint...
+[2026-06-10 16:55:29] [INFO] Generating incremental fallback (Logical Dumps) via docker...
+[2026-06-10 16:55:30] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-55 (Since TS: [2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?,[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed)
+[2026-06-10 16:55:30] [INFO] Dumping oplog since [2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed,[2026-06-10 16:49:44] [INFO] Starting MongoDB INCREMENTAL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/incremental/mongodb/2026-06-10_16-49 (Since TS: [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?)
+[2026-06-10 16:49:44] [INFO] Dumping oplog since [2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_leave_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_leave_db failed
+[2026-06-10 16:47:08] [INFO] Dumping MongoDB: hr_noti_db
+[2026-06-10 16:47:08] [ERROR] mongodump for hr_noti_db failed
+[2026-06-10 16:47:08] [WARN] Could not get MongoDB oplog timestamp. Is it a replica set?...
+[2026-06-10 16:49:44] [WARN] mongodump oplog failed. Falling back to normal dump.
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_leave_db failed
+[2026-06-10 16:49:44] [ERROR] mongodump (fallback) for hr_noti_db failed...
+[2026-06-10 16:55:30] [WARN] mongodump oplog failed. Falling back.
+[2026-06-10 16:57:32] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:57:32] [INFO] Mode: FULL BACKUP
+[2026-06-10 16:57:32] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:57:32] [INFO] Running pg_basebackup via docker...
+[2026-06-10 16:57:32] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:57:33] [INFO] PostgreSQL FULL Backup complete. LSN: 0/900FC10
+[2026-06-10 16:59:37] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 16:59:37] [INFO] Mode: FULL BACKUP
+[2026-06-10 16:59:37] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 16:59:37] [INFO] Running pg_basebackup via docker (to temp dir, then copy)...
+[2026-06-10 16:59:37] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 16:59:37] [INFO] PostgreSQL FULL Backup complete. LSN: 0/900FCF8
+[2026-06-10 17:01:03] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 17:01:03] [INFO] Mode: FULL BACKUP
+[2026-06-10 17:01:03] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 17:01:03] [INFO] Running pg_basebackup via docker (to temp dir, then copy)...
+[2026-06-10 17:01:03] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 17:01:04] [INFO] PostgreSQL FULL Backup complete. LSN: 0/900FCF8
+[2026-06-10 17:02:09] [INFO] === Starting HR Microservices Backup ===
+[2026-06-10 17:02:09] [INFO] Mode: FULL BACKUP
+[2026-06-10 17:02:09] [INFO] Starting PostgreSQL FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/postgres/2026-06-10
+[2026-06-10 17:02:09] [INFO] Running logical full backup (pg_dump -Fc) due to Spilo/Patroni replication restrictions...
+[2026-06-10 17:02:09] [INFO] Dumping PostgreSQL schemas...
+[2026-06-10 17:02:09] [INFO] PostgreSQL FULL Backup complete. LSN: 0/900FCF8
+[2026-06-10 17:02:09] [INFO] Starting MongoDB FULL Backup to /home/ubuntu01/Desktop/Code/SA25-26_ClassN01_Group05/backup_data/full/mongodb/2026-06-10
+[2026-06-10 17:02:09] [INFO] Dumping MongoDB: logs_db
+[2026-06-10 17:02:10] [INFO] MongoDB FULL Backup complete. TS: 1781085726,1
+[2026-06-10 17:02:10] [INFO] Cleaning up old backups (FULL: 30d, INC: 7d, LOGS: 30d)
+[2026-06-10 17:02:10] [INFO] Backup completed successfully.

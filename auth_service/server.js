@@ -33,6 +33,7 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const otpRoute = require("./routes/otp");
 const departmentRoutes = require("./routes/departments"); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY
+const settingsRoutes = require("./routes/settings"); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY
 
 const app = express();
 const server = http.createServer(app);
@@ -133,6 +134,7 @@ app.use("/api/auth_ser", authRoutes);
 app.use("/api/auth_ser/users", userRoutes);
 app.use("/api/otp", otpRoute);
 app.use("/api/auth_ser/departments", departmentRoutes); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY ĐỂ KÍCH HOẠT API
+app.use("/api/auth_ser/settings", settingsRoutes); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY ĐỂ KÍCH HOẠT API SETTINGS
 // app.use("/api/auth_ser/announcements", announcementRoutes); da tach sang noti_service rui nen khong can nua
 
 // --- KẾT NỐI MONGODB ---
