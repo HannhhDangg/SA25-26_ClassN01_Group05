@@ -418,7 +418,7 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres_exporter
     environment:
-      - DATA_SOURCE_NAME=postgresql://postgres:rootpassword@postgres-1:5432/postgres?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://postgres:rootpassword@postgres-1:5432/postgres?sslmode=require
     ports:
       - "9187:9187"
     networks:
