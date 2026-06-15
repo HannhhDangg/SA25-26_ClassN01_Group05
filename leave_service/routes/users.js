@@ -86,9 +86,8 @@ router.put("/:id/status", authenticate, async (req, res) => {
 // --- 3. User tự cập nhật hồ sơ ---
 router.get("/:id", authenticate, async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM users WHERE id = $1", [
-      req.params.id,
-    ]);
+    // C6: Thay vì SELECT *, chỉ trả về các trường không nhạy cảm
+    const result = await pool.query("SELECT id, username, full_name, email, phone_number, role, status, avatar_url, department_id, max_leave_days, base_salary, created_at FROM users WHERE id = $1", [req.params.id]);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
