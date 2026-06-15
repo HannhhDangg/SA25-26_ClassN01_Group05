@@ -4,6 +4,7 @@ const fs = require("fs");
 const { createClient } = require("redis");
 const pool = require("../db"); // PostgreSQL Connection
 const client = require('prom-client');
+const jwt = require("jsonwebtoken");
 
 const redisUrl = `redis://${process.env.REDIS_HOST || 'redis'}:${process.env.REDIS_PORT || 6379}`;
 const redisClient = createClient({ url: redisUrl });
@@ -18,6 +19,19 @@ let redisReady = false;
     console.warn('Attendance service Redis readiness failed:', err.message);
   }
 })();
+
+// --- MIDDLEWARE XÁC THỰC TOKEN ---
+const verifyToken = (req, res, next) => {
+  const token = req.header("Authorization");
+  if (!token) return res.status(401).json({ message: "Từ chối truy cập!" });
+  try {
+    const verified = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+    req.user = verified;
+    next();
+  } catch (err) {
+    res.status(400).json({ message: "Token không hợp lệ!" });
+  }
+};
 
 // --- CẤU HÌNH PROMETHEUS METRICS ---
 const register = new client.Registry();
@@ -106,8 +120,9 @@ router.get("/health/ready", async (req, res) => {
 
 
 // / --- 1. API: ỨNG DỤNG SPA CỦA NHÂN VIÊN GỌI ĐỂ CHẤM CÔNG ---
-router.post("/verify-code", async (req, res) => {
-  const { user_id,device_id,late_minutes,early_leave_minutes, type } = req.body;
+router.post("/verify-code", verifyToken, async (req, res) => {
+  const { device_id,late_minutes,early_leave_minutes, type } = req.body;
+  const user_id = req.user.id; // Lấy ID trực tiếp từ Token đã xác thực
 
   try {
     // Tạo thời gian hiện tại theo múi giờ Việt Nam dưới dạng chuỗi "YYYY-MM-DD HH:mm:ss"
