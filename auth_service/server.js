@@ -32,8 +32,11 @@ register.registerMetric(httpRequestsTotal);
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const otpRoute = require("./routes/otp");
-const departmentRoutes = require("./routes/departments"); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY
-const settingsRoutes = require("./routes/settings"); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY
+
+// 🔥 Bọc Try-Catch để nếu thiếu file hệ thống cũng không bị sập
+let departmentRoutes, settingsRoutes;
+try { departmentRoutes = require("./routes/departments"); } catch (e) { console.warn("⚠️ Chưa có file departments.js"); }
+try { settingsRoutes = require("./routes/settings"); } catch (e) { console.warn("⚠️ Chưa có file settings.js"); }
 
 const app = express();
 const server = http.createServer(app);
@@ -133,8 +136,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth_ser", authRoutes);
 app.use("/api/auth_ser/users", userRoutes);
 app.use("/api/otp", otpRoute);
-app.use("/api/auth_ser/departments", departmentRoutes); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY ĐỂ KÍCH HOẠT API
-app.use("/api/auth_ser/settings", settingsRoutes); // 🔥 ĐÃ BỔ SUNG DÒNG NÀY ĐỂ KÍCH HOẠT API SETTINGS
+if (departmentRoutes) app.use("/api/auth_ser/departments", departmentRoutes); 
+if (settingsRoutes) app.use("/api/auth_ser/settings", settingsRoutes); 
 // app.use("/api/auth_ser/announcements", announcementRoutes); da tach sang noti_service rui nen khong can nua
 
 // --- KẾT NỐI MONGODB ---

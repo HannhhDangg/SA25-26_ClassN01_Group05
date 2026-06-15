@@ -57,6 +57,8 @@ services:
       - MONGO_URI=mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/logs_db?replicaSet=rs0&readPreference=secondaryPreferred
       - REDIS_HOST=redis
       - JWT_SECRET=secret_key_cua_ban
+      - SMTP_USER=hnd10112005@gmail.com
+      - SMTP_PASS=cqzx yepa spwn twwa
       - TZ=Asia/Ho_Chi_Minh
     deploy:
       resources:
@@ -66,7 +68,7 @@ services:
     volumes:
       - ./auth_service:/app
       - /app/node_modules
-    command: sh -c "npm install && npm start" # Đảm bảo thư viện được cài đặt vào anonymous volume
+    command: sh -c "npm install --no-package-lock && npm start" # Đảm bảo thư viện được cài đặt vào anonymous volume
     depends_on:
       haproxy:
         condition: service_started
@@ -97,7 +99,7 @@ services:
       - ./leave_service:/app
       - ./leave_service/uploads:/app/uploads
       - /app/node_modules
-    command: sh -c "npm install && npm start"
+    command: sh -c "npm install --no-package-lock && npm start"
     depends_on:
       haproxy:
         condition: service_started
@@ -125,7 +127,7 @@ services:
     volumes:
       - ./noti_service:/app
       - /app/node_modules
-    command: sh -c "npm install && npm start"
+    command: sh -c "npm install --no-package-lock && npm start"
     depends_on:
       haproxy:
         condition: service_started
@@ -178,7 +180,7 @@ services:
     volumes:
       - ./salary_service:/app
       - /app/node_modules
-    command: sh -c "npm install && npm start"
+    command: sh -c "npm install --no-package-lock && npm start"
     depends_on:
       haproxy:
         condition: service_started
@@ -192,15 +194,15 @@ services:
   frontend:
     build: ./frontend
     environment:
-      # SỬA LẠI: URL API phải trỏ về Nginx (cổng 80) hoặc trực tiếp Kong nếu Nginx lỗi
-      - VITE_APP_API_URL=http://localhost:80
+      # 🛑 SỬA LẠI: Trong Docker, localhost là chính nó. Phải dùng tên container Kong/Nginx
+      - VITE_APP_API_URL=http://api-gateway:8000
     # XÓA DÒNG "command: ..." cũ đi, vì file vite.config.js đã tự lo rồi
     ports:
       - "3001:3000" # Đổi sang 3001 để tránh trùng với Grafana (3000)
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install --no-package-lock && npm run dev"
     stdin_open: true
     tty: true
     networks:
