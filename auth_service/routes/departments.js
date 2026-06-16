@@ -1,6 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db");
+const jwt = require("jsonwebtoken");
+
+// Hỗ trợ xác thực Token
+const authenticate = (req, res, next) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
+    try {
+        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        next();
+    } catch (err) { return res.status(403).json({ message: "Token không hợp lệ!" }); }
+};
 
 // 1. Lấy danh sách tất cả phòng ban (Kèm tên Trưởng phòng nếu có)
 router.get("/", async (req, res) => {
@@ -20,7 +31,12 @@ router.get("/", async (req, res) => {
 });
 
 // 2. Tạo phòng ban mới
-router.post("/", async (req, res) => {
+router.post("/", authenticate, async (req, res) => {
+    // C4: Kiểm tra quyền truy cập
+    if (req.user.role !== "SUPERADMIN" && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Không có quyền tạo phòng ban!" });
+    }
+
     try {
         const { name, description, manager_id } = req.body;
         if (!name) return res.status(400).json({ message: "Tên phòng ban không được để trống!" });
@@ -41,7 +57,12 @@ router.post("/", async (req, res) => {
 });
 
 // 3. Cập nhật thông tin phòng ban
-router.put("/:id", async (req, res) => {
+router.put("/:id", authenticate, async (req, res) => {
+    // C4: Kiểm tra quyền truy cập
+    if (req.user.role !== "SUPERADMIN" && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Không có quyền cập nhật phòng ban!" });
+    }
+
     try {
         const { id } = req.params;
         const { name, description, manager_id } = req.body;
@@ -65,7 +86,12 @@ router.put("/:id", async (req, res) => {
 });
 
 // 4. Xóa phòng ban
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticate, async (req, res) => {
+    // C4: Kiểm tra quyền truy cập
+    if (req.user.role !== "SUPERADMIN" && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Không có quyền xóa phòng ban!" });
+    }
+
     try {
         const { id } = req.params;
 

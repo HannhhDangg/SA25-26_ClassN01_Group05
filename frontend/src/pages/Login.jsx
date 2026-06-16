@@ -88,20 +88,30 @@ const Login = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: formData.username, password: formData.password }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        if (["SUPERADMIN", "ADMIN", "MANAGER"].includes(data.user.role)) {
-          navigate("/admin");
+      
+      // 🔥 Sửa lỗi bắt hụt dữ liệu khi Server sập (trả về HTML báo lỗi 502 thay vì JSON)
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          if (["SUPERADMIN", "ADMIN", "MANAGER"].includes(data.user.role)) {
+            navigate("/admin");
+          } else {
+            navigate("/employee");
+          }
         } else {
-          navigate("/employee");
+          alert(data.message || "Sai thông tin đăng nhập");
         }
       } else {
-        alert(data.message || "Sai thông tin đăng nhập");
+        const text = await res.text();
+        alert(`Lỗi API Gateway (${res.status}): Hệ thống Backend (auth_service) đang không hoạt động!`);
+        console.error("Non-JSON Response:", text);
       }
-    } catch {
-      alert("Lỗi kết nối Server!");
+    } catch (err) {
+      console.error("Lỗi Fetch:", err);
+      alert("Lỗi mạng: Không thể kết nối tới Server!");
     } finally {
       setLoading(false);
     }

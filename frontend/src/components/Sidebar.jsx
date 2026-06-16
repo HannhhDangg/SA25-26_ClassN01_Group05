@@ -43,8 +43,18 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0, unreadNoti = 0 }) => {
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm("Bạn có chắc muốn đăng xuất?")) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          await fetch("/api/auth_ser/logout", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+        } catch (err) { console.error("Lỗi đăng xuất:", err); }
+      }
+
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       navigate("/login");
@@ -77,7 +87,7 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0, unreadNoti = 0 }) => {
             <div className="menu-label">Quản trị</div>
             <MenuItem icon={FaUsers} label="Quản lý nhân sự" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} badge={pendingUsers} />
             {/* Đã có cho Superadmin */}
-            <MenuItem icon={FaBell} label="Thông báo chung" active={isActive("/admin/announcements")} onClick={() => navigate("/admin/announcements")} badge={unreadNoti} />
+            <MenuItem icon={FaBell} label="Thông báo" active={isActive("/admin/announcements")} onClick={() => navigate("/admin/announcements")} badge={unreadNoti} />
             <MenuItem icon={FaCog} label="Cài đặt" active={isActive("/admin/settings")} onClick={() => navigate("/admin/settings")} />
           </>
         )}
@@ -100,7 +110,7 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0, unreadNoti = 0 }) => {
             <MenuItem icon={FaUsers} label="Nhân sự nhóm" active={isActive("/admin/users")} onClick={() => navigate("/admin/users")} badge={pendingUsers} />
 
             {/* 🔥 MỚI THÊM: Trạm thông báo cho MANAGER */}
-            <MenuItem icon={FaBell} label="Thông báo chung" active={isActive("/admin/announcements")} onClick={() => navigate("/admin/announcements")} badge={unreadNoti} />
+            <MenuItem icon={FaBell} label="Thông báo" active={isActive("/admin/announcements")} onClick={() => navigate("/admin/announcements")} badge={unreadNoti} />
           </>
         )}
 
@@ -116,7 +126,7 @@ const Sidebar = ({ pendingLeaves = 0, pendingUsers = 0, unreadNoti = 0 }) => {
             <MenuItem icon={FaCoins} label="Xem lương" active={isActive("/employee/salary")} onClick={() => navigate("/employee/salary")} />
 
             {/* 🔥 MỚI THÊM: Hòm thư thông báo cho STAFF */}
-            <MenuItem icon={FaBell} label="Thông báo chung" active={isActive("/employee/announcements")} onClick={() => navigate("/employee/announcements")} badge={unreadNoti} />
+            <MenuItem icon={FaBell} label="Thông báo" active={isActive("/employee/announcements")} onClick={() => navigate("/employee/announcements")} badge={unreadNoti} />
           </>
         )}
       </div>

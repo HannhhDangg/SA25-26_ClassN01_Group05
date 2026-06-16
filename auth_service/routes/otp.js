@@ -2,13 +2,15 @@ const express = require("express");
 const router = express.Router();
 const nodemailer = require("nodemailer");
 const { createClient } = require("redis");
+const bcrypt = require("bcryptjs");
+const pool = require("../db");
 
 // Cấu hình máy chủ gửi mail
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "hnd10112005@gmail.com",
-    pass: "cqzx yepa spwn twwa", // Đảm bảo mật khẩu ứng dụng không có khoảng trắng
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
@@ -17,16 +19,22 @@ router.post("/send-otp", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: "Thiếu email!" });
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
   try {
+    // 1. Kiểm tra email đã tồn tại trong DB chưa trước khi gửi
+    const emailCheck = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ message: "Gmail/Email này đã tồn tại!" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
     const redisClient = createClient({ url: "redis://redis:6379" });
     await redisClient.connect();
     await redisClient.setEx(`otp:${email}`, 300, otp);
     await redisClient.disconnect();
 
     const mailOptions = {
-      from: '"Hệ Thống Quản Lý Nhân Sự HRM" <hnd10112005@gmail.com>',
+      from: `"Hệ Thống Quản Lý Nhân Sự HRM" <${process.env.SMTP_USER}>`,
       to: email,
       subject: "Mã xác thực OTP - Hệ Thống Quản Lý Nhân Sự HRM",
       html: `
@@ -60,7 +68,7 @@ router.post("/send-otp", async (req, res) => {
     res.json({ message: "Mã OTP đã được gửi vào email!" });
   } catch (error) {
     console.error("Lỗi gửi mail:", error);
-    res.status(500).json({ message: "Không thể gửi email!" });
+    res.status(500).json({ message: "Lỗi hệ thống: Không thể gửi email, vui lòng thử lại sau!" });
   }
 });
 
@@ -100,9 +108,6 @@ router.post("/verify-otp", async (req, res) => {
     res.status(500).json({ message: "Lỗi hệ thống khi xác thực!" });
   }
 });
-
-const bcrypt = require("bcryptjs"); // Đảm bảo đã import bcrypt
-const pool = require("../db"); // Import kết nối Postgres của bạn
 
 // API: Đặt lại mật khẩu mới
 router.post("/reset-password", async (req, res) => {

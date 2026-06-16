@@ -4,6 +4,7 @@ const pool = require("../db");
 const multer = require("multer");
 const path = require("path");
 const LeaveLog = require("../models/LeaveLog");
+const jwt = require("jsonwebtoken"); // 🔥 Bổ sung thư viện JWT
 
 // --- CẤU HÌNH UPLOAD ẢNH (SỬA ĐƯỜNG DẪN TUYỆT ĐỐI) ---
 const storage = multer.diskStorage({
@@ -20,8 +21,21 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+// 🔥 Middleware xác thực Token dùng chung
+const authenticate = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch (err) { 
+    console.error("Lỗi xác thực Token:", err); // In ra log để dễ Debug sau này
+    return res.status(403).json({ message: "Token không hợp lệ!" }); 
+  }
+};
+
 // --- 1. ADMIN: Lấy danh sách toàn bộ nhân viên ---
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   try {
     console.log("API /api/users được gọi");
     const result = await pool.query(
@@ -39,9 +53,14 @@ router.get("/", async (req, res) => {
 });
 
 // --- 2. ADMIN: Kích hoạt / Khóa tài khoản ---
-router.put("/:id/status", async (req, res) => {
+router.put("/:id/status", authenticate, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+
+  // H4: Chặn vô hiệu hóa tài khoản nếu không phải ADMIN/SUPERADMIN
+  if (req.user.role !== "SUPERADMIN" && req.user.role !== "ADMIN") {
+    return res.status(403).json({ message: "Không có quyền cập nhật trạng thái tài khoản!" });
+  }
 
   try {
     await pool.query("UPDATE users SET status = $1 WHERE id = $2", [
@@ -65,20 +84,24 @@ router.put("/:id/status", async (req, res) => {
 });
 
 // --- 3. User tự cập nhật hồ sơ ---
-router.get("/:id", async (req, res) => {
+router.get("/:id", authenticate, async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM users WHERE id = $1", [
-      req.params.id,
-    ]);
+    // C6: Thay vì SELECT *, chỉ trả về các trường không nhạy cảm
+    const result = await pool.query("SELECT id, username, full_name, email, phone_number, role, status, avatar_url, department_id, max_leave_days, base_salary, created_at FROM users WHERE id = $1", [req.params.id]);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put("/:id", upload.single("avatar"), async (req, res) => {
+router.put("/:id", authenticate, upload.single("avatar"), async (req, res) => {
   const { id } = req.params;
   const { full_name, phone_number } = req.body;
+
+  // H3: Chặn quyền sửa đổi Profile của người khác
+  if (req.user.id !== parseInt(id)) {
+    return res.status(403).json({ message: "Bạn không có quyền sửa hồ sơ của người khác!" });
+  }
 
   try {
     const oldUser = await pool.query("SELECT * FROM users WHERE id = $1", [id]);

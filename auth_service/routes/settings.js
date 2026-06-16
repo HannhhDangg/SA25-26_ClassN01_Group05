@@ -1,6 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db");
+const jwt = require("jsonwebtoken");
+
+// Hỗ trợ xác thực Token
+const authenticate = (req, res, next) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
+    try {
+        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        next();
+    } catch (err) { return res.status(403).json({ message: "Token không hợp lệ!" }); }
+};
 
 // 1. Lấy cấu hình theo key
 router.get("/:key", async (req, res) => {
@@ -19,7 +30,12 @@ router.get("/:key", async (req, res) => {
 });
 
 // 2. Cập nhật cấu hình theo key
-router.put("/:key", async (req, res) => {
+router.put("/:key", authenticate, async (req, res) => {
+    // C3: Chặn người dùng không có quyền (Chỉ Giám đốc/Admin mới được sửa hệ thống)
+    if (req.user.role !== "SUPERADMIN" && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Bạn không có quyền thay đổi cấu hình hệ thống!" });
+    }
+
     try {
         const { key } = req.params;
         const value = req.body;

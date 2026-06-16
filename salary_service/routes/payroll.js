@@ -9,7 +9,7 @@ const authenticate = (req, res, next) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
     try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+        req.user = jwt.verify(token, process.env.JWT_SECRET);
         next();
     } catch (err) {
         return res.status(403).json({ message: "Token không hợp lệ!" });
@@ -290,6 +290,12 @@ router.put("/:id/status", authenticate, async (req, res) => {
 // --- 4. LẤY CHI TIẾT CÁC NGÀY BỊ PHẠT / KHẤU TRỪ ---
 router.get("/:year/:month/:user_id/penalties", authenticate, async (req, res) => {
     const { year, month, user_id } = req.params;
+
+    // H9: Chặn IDOR xem chi tiết phạt của người khác
+    if (req.user.role === "STAFF" && req.user.id !== parseInt(user_id)) {
+        return res.status(403).json({ message: "Không được xem chi tiết phạt của người khác!" });
+    }
+
     try {
         const logsRes = await pool.query(`
             SELECT work_date, status, late_minutes, early_leave_minutes

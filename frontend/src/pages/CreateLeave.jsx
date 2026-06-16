@@ -24,8 +24,9 @@ const CreateLeave = () => {
         if (totalDays <= 0) return toast.warning("Ngày kết thúc phải hợp lệ!");
         setLoading(true);
         try {
+            const token = localStorage.getItem("token");
             const res = await fetch("/api/leave_ser", {
-                method: "POST", headers: { "Content-Type": "application/json" },
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                 body: JSON.stringify({ user_id: user.id, ...formData, total_days: totalDays })
             });
             const data = await res.json();

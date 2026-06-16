@@ -41,7 +41,12 @@ const ProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
       if (selectedFile) dataToSend.append("avatar", selectedFile);
       else dataToSend.append("avatar_url", user.avatar_url || "");
 
-      const res = await fetch(`/api/users/${user.id}`, { method: "PUT", body: dataToSend });
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/users/${user.id}`, { 
+        method: "PUT", 
+        headers: { "Authorization": `Bearer ${token}` },
+        body: dataToSend 
+      });
       const data = await res.json();
 
       if (res.ok) {

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL, 
     full_name VARCHAR(100),
-    email VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
     phone_number VARCHAR(15),
     avatar_url VARCHAR(255),
     department_id INT REFERENCES departments(id) ON DELETE SET NULL,

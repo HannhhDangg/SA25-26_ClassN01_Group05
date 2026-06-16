@@ -11,7 +11,7 @@ const redisClient = redis.createClient({
 });
 
 redisClient.on('error', (err) => console.log('Redis Client Error', err));
-redisClient.connect().then(() => console.log('Connected to Redis for Auth'));
+redisClient.connect().then(() => console.log('Connected to Redis for Auth')).catch(err => console.error('⚠️ Lỗi kết nối Redis ở Route Auth:', err));
 
 // --- 1. API ĐĂNG KÝ (Register) ---
 router.post("/register", async (req, res) => {
@@ -34,7 +34,7 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const status = "PENDING_ADMIN";
-    const finalRole = (role === "MANAGER") ? "MANAGER" : "STAFF";
+    const finalRole = "STAFF"; // C9: Ngăn chặn leo thang đặc quyền tự gán role MANAGER
 
     // 🔥 XỬ LÝ ID PHÒNG BAN CHUẨN XÁC, CHỐNG LỖI NaN
     let parsedDeptId = null;
@@ -55,10 +55,12 @@ router.post("/register", async (req, res) => {
     }
 
     const newUser = await pool.query(
-      `INSERT INTO users (username, password, full_name, email, phone_number, role, status, department_id) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO users (username, password, full_name, email, phone_number, role, status, department_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, username, full_name, email, phone_number, role, status, department_id, created_at`,
       [username, hashedPassword, actualFullName, email, actualPhone, finalRole, status, parsedDeptId]
     );
+
+    // C7: Không còn trả về 'password' do đã giới hạn các cột trong câu truy vấn RETURNING
 
     // 🔥 Bắn Socket thông báo có nhân sự mới đăng ký
     try {
@@ -116,7 +118,7 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, role: user.role, username: user.username, department_id: user.department_id },
-      process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi",
+      process.env.JWT_SECRET, // C8: Loại bỏ fallback secret yếu/hardcode
       { expiresIn: "1d" }
     );
 
@@ -132,13 +134,16 @@ router.post("/login", async (req, res) => {
 
 // --- 3. API ĐĂNG XUẤT (Logout) ---
 router.post("/logout", async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ message: "Cần userId để đăng xuất" });
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Cần token để đăng xuất" });
+
   try {
-    await redisClient.del(`session:${userId}`);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    await redisClient.del(`session:${decoded.id}`);
     res.json({ message: "Đăng xuất thành công!" });
   } catch (err) {
     console.error(err);
+    if (err.name === 'TokenExpiredError') return res.status(401).json({ message: "Token đã hết hạn!" });
     res.status(500).json({ message: "Lỗi server khi đăng xuất" });
   }
 });

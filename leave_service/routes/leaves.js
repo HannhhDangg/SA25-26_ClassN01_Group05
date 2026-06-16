@@ -9,7 +9,7 @@ router.get("/stats/admin-summary", async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
-    const currentUser = jwt.verify(token, process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET);
 
     let totalUsers = 0;
     let absentToday = 0;
@@ -61,6 +61,17 @@ router.get("/stats/admin-summary", async (req, res) => {
 // --- 2. Xem số dư phép (Giữ nguyên) ---
 router.get("/balance/:user_id", async (req, res) => {
   const { user_id } = req.params;
+  
+  // H2: Chặn IDOR xem số dư phép của người khác
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
+  try {
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET);
+    if (currentUser.role === "STAFF" && currentUser.id !== parseInt(user_id)) {
+      return res.status(403).json({ message: "Không có quyền xem số dư phép của người khác" });
+    }
+  } catch (err) { return res.status(403).json({ message: "Token không hợp lệ!" }); }
+
   const currentYear = new Date().getFullYear();
   try {
     const userRes = await pool.query("SELECT max_leave_days FROM users WHERE id = $1", [user_id]);
@@ -88,7 +99,17 @@ router.get("/stats/today", async (req, res) => {
 
 // --- 3. Tạo đơn nghỉ phép (Giữ nguyên) ---
 router.post("/", async (req, res) => {
-  const { user_id, reason, start_date, end_date, total_days } = req.body;
+  // C5: Ràng buộc tính hợp lệ của người tạo bằng cách lấy user_id từ Token
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
+  let currentUser;
+  try {
+    currentUser = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ message: "Token không hợp lệ!" });
+  }
+  const user_id = currentUser.id;
+  const { reason, start_date, end_date, total_days } = req.body;
   const currentYear = new Date().getFullYear();
 
   try {
@@ -137,7 +158,7 @@ router.get("/pending-count", async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "Unauthorized" });
-    const currentUser = jwt.verify(token, process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET);
 
     let count = 0;
     if (currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN") {
@@ -164,6 +185,16 @@ router.get("/pending-count", async (req, res) => {
 // --- 5. Lấy lịch sử đơn CỦA CÁ NHÂN (Giữ nguyên) ---
 router.get("/:user_id", async (req, res) => {
   try {
+    // H1: Chặn IDOR xem lịch sử nghỉ phép của người khác
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
+    try {
+      const currentUser = jwt.verify(token, process.env.JWT_SECRET);
+      if (currentUser.role === "STAFF" && currentUser.id !== parseInt(req.params.user_id)) {
+        return res.status(403).json({ message: "Không có quyền xem lịch sử đơn của người khác" });
+      }
+    } catch (err) { return res.status(403).json({ message: "Token không hợp lệ!" }); }
+
     const result = await pool.query("SELECT * FROM leave_requests WHERE user_id = $1 ORDER BY created_at DESC", [req.params.user_id]);
     res.json(result.rows);
   } catch (err) { res.status(500).json({ message: "Lỗi danh sách" }); }
@@ -174,7 +205,7 @@ router.get("/", async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
-    const currentUser = jwt.verify(token, process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET);
 
     const statusFilter = req.query.status;
 
@@ -219,7 +250,7 @@ router.put("/:id/status", async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
-    const currentUser = jwt.verify(token, process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET);
 
     const leaveRes = await pool.query(`SELECT lr.*, u.full_name, u.department_id, u.role as target_role FROM leave_requests lr JOIN users u ON lr.user_id = u.id WHERE lr.id = $1`, [id]);
     if (leaveRes.rows.length === 0) return res.status(404).json({ message: "Không tìm thấy đơn!" });
@@ -284,7 +315,7 @@ router.get("/schedule/weekly", async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "Chưa đăng nhập!" });
-    const currentUser = jwt.verify(token, process.env.JWT_SECRET || "bi_mat_khong_the_bat_mi");
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET);
 
     // Nhận tham số ngày bắt đầu của tuần từ Frontend (nếu không có thì lấy tuần hiện tại)
     // Format: YYYY-MM-DD
