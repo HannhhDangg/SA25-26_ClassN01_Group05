@@ -301,7 +301,7 @@ INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, 
 (4, '2026-05-20', NULL, NULL, 'Không phép', 0, 0);
 
 -- 9. THÊM MỚI: Tự động seed dữ liệu đi làm đầy đủ, đúng giờ cho toàn bộ nhân viên
--- Từ 01/01/2026 đến ngày 18/06/2026. Bỏ qua Chủ Nhật, Lễ/Tết, và ngày đã có đơn nghỉ phép được duyệt.
+-- Từ 01/01/2026 đến ngày trước ngày hiện tại (Hôm nay để trống để demo). Bỏ qua Chủ Nhật, Lễ/Tết, và ngày đã có đơn nghỉ phép được duyệt.
 INSERT INTO attendance_logs (user_id, work_date, check_in_time, check_out_time, status)
 SELECT 
     u.id, 
@@ -310,7 +310,7 @@ SELECT
     d.work_date + TIME '17:00:00', 
     'Tan Làm' 
 FROM users u
-CROSS JOIN generate_series('2026-01-01'::DATE, '2026-06-18'::DATE, '1 day'::interval) AS d(work_date)
+CROSS JOIN generate_series('2026-01-01'::DATE, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE - interval '1 day', '1 day'::interval) AS d(work_date)
 LEFT JOIN leave_requests lr ON u.id = lr.user_id AND lr.status = 'APPROVED' AND d.work_date::DATE BETWEEN lr.start_date AND lr.end_date
 WHERE u.status = 'ACTIVE' -- Chỉ seed cho nhân viên đang hoạt động
   AND d.work_date::DATE >= u.created_at::DATE -- Chỉ seed từ ngày nhân viên vào làm
@@ -330,7 +330,7 @@ WITH past_months AS (
         EXTRACT(MONTH FROM month_series)::int AS payroll_month
     FROM generate_series(
         '2026-01-01'::date, 
-        date_trunc('month', CURRENT_DATE) - interval '1 month', -- Chỉ tính đến tháng trước tháng hiện tại
+        date_trunc('month', (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE) - interval '1 month', -- Chỉ tính đến tháng trước tháng hiện tại
         '1 month'::interval
     ) AS month_series
 ),
