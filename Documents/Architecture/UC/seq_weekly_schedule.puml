@@ -1,0 +1,32 @@
+@startuml seq_weekly_schedule
+!theme plain
+title Sequence Diagram: Fetch Weekly Matrix Schedule (Aggregator)
+
+skinparam maxMessageSize 150
+
+actor "HR User" as User
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Leave Service" as Leave
+database "PostgreSQL (HA)" as PG
+
+User -> Client : Navigate to "Weekly Schedule"
+Client -> Gateway : GET /api/leaves/schedule/weekly
+Gateway -> Leave : Route Request
+
+Leave -> Leave : Verify JWT Token & RBAC
+
+Note over Leave, PG: Complex Aggregation Flow
+Leave -> PG : 1. Query Target Users (Based on Role/Dept)
+Leave -> PG : 2. Generate 7-Days Date Array (generate_series)
+Leave -> PG : 3. Query APPROVED Leaves for Target Users (7 Days)
+Leave -> PG : 4. Query Attendance Logs for Target Users (7 Days)
+Leave -> PG : 5. Query System Settings (Holidays)
+
+Leave -> Leave : Map Data: User x 7 Days Matrix
+Leave -> Leave : Apply Status Logic (WORKING, LEAVE, HOLIDAY, UNEXCUSED)
+Leave -> Leave : Compute Late/Early Status from Logs
+
+Leave -> Client : Return Aggregated JSON Matrix
+Client -> User : Render Weekly Grid UI
+@enduml

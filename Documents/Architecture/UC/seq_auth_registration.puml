@@ -1,0 +1,38 @@
+@startuml seq_auth_registration
+!theme plain
+title Sequence Diagram: User Registration & OTP Verification
+
+skinparam maxMessageSize 150
+
+actor "New User" as User
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Auth Service" as Auth
+database "Redis (Cache)" as Redis
+participant "SMTP Server" as Email
+database "PostgreSQL (HA)" as PG
+
+== Phase 1: Request Registration ==
+User -> Client : Submit Form (Username, Password, Email)
+Client -> Gateway : POST /api/auth/register
+Gateway -> Auth : Route Request (Rate Limited)
+
+Auth -> Auth : Validate Input & Hash Password (Bcrypt)
+Auth -> Auth : Generate 6-digit OTP
+Auth -> Redis : SET otp:<email> with TTL (5 minutes)
+Auth -> Email : Send OTP via Nodemailer
+Email -> User : Deliver Email to Inbox
+Auth -> Client : 200 OK (OTP Sent)
+
+== Phase 2: OTP Verification ==
+User -> Client : Input 6-digit OTP
+Client -> Gateway : POST /api/auth/verify-otp
+Gateway -> Auth : Route Request
+
+Auth -> Redis : GET otp:<email>
+Redis --> Auth : Return OTP String
+Auth -> Auth : Compare OTPs
+Auth -> PG : INSERT INTO users (status = 'PENDING_ADMIN')
+Auth -> Client : 201 Created (Account Created)
+Client -> User : Show Success & Redirect to Login
+@enduml

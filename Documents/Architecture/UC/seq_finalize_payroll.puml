@@ -1,0 +1,24 @@
+@startuml seq_finalize_payroll
+!theme plain
+title Sequence Diagram: Mark Payroll as PAID
+
+skinparam maxMessageSize 150
+
+actor "Manager/Admin" as Manager
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Salary Service" as Salary
+database "PostgreSQL (HA)" as PG
+database "MongoDB" as Mongo
+
+Manager -> Client : Click "Mark as Paid"
+Client -> Gateway : PUT /api/payroll/:id/status \n{ status: 'PAID' }
+Gateway -> Salary : Route Request
+
+Salary -> Salary : Verify JWT & RBAC (Manager/Superadmin Only)
+Salary -> PG : UPDATE monthly_payrolls \nSET status = 'PAID' WHERE id = :id
+Salary -> Mongo : INSERT PayrollLog \n(Action: FINALIZE_PAYROLL, Audit Trail)
+
+Salary -> Client : 200 OK (Success)
+Client -> Manager : Show Success Toast & Update UI
+@enduml

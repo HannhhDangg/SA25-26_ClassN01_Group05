@@ -1,0 +1,32 @@
+@startuml seq_attendance_checkin
+!theme plain
+title Sequence Diagram: Attendance Check-in / Check-out Flow
+
+skinparam maxMessageSize 150
+
+actor "Staff" as Staff
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Attendance Service" as Attendance
+participant "Prom-client" as Metrics
+database "PostgreSQL (HA)" as PG
+
+Staff -> Client : Click "Check-in" button
+Client -> Client : Get Local Time & Calculate Late Minutes
+Client -> Gateway : POST /api/attendance/verify-code \n(device_id, late_minutes, type)
+Gateway -> Attendance : Route Request
+
+Attendance -> Metrics : Intercept Request (Start Timer)
+Attendance -> Attendance : Verify JWT & Extract user_id
+
+Note over Attendance, PG: Idempotent DB Operation
+Attendance -> PG : INSERT INTO attendance_logs \nON CONFLICT (user_id, work_date) \nDO UPDATE SET check_in_time = EXCLUDED...
+PG --> Attendance : Acknowledge Upsert
+
+Attendance -> Attendance : Log action (Grafana Loki format)
+Attendance -> Metrics : Res.on('finish') -> Record Duration & Increment Counter
+
+Attendance -> Client : 200 OK (Success Message)
+Client -> Staff : Update UI (Status: "Đang Làm")
+
+@enduml

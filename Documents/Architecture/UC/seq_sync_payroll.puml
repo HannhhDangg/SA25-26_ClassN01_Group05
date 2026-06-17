@@ -1,0 +1,31 @@
+@startuml seq_sync_payroll
+!theme plain
+title Sequence Diagram: Sync & Get Payroll
+
+skinparam maxMessageSize 150
+
+actor "Manager/Admin" as Manager
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Salary Service" as Salary
+database "PostgreSQL (HA)" as PG
+
+Manager -> Client : Access /payroll, select Month/Year
+Client -> Gateway : GET /api/payroll/:year/:month
+Gateway -> Salary : Route Request (With JWT Token)
+
+Salary -> Salary : Decode & Verify JWT Token
+
+par Concurrent Data Fetching
+    Salary -> PG : Query Users (Status: ACTIVE)
+    Salary -> PG : Query Attendance Logs (By Month)
+    Salary -> PG : Query Leave Requests (Status: APPROVED)
+    Salary -> PG : Query System Settings (Penalties, Working Hours)
+end
+
+Note over Salary: Calculate Net Salary (syncPayrollRealtime())\n1. Calc Standard Work Days\n2. Deduct Late/Absence Penalties\n3. Add OT Bonuses
+
+Salary -> PG : INSERT/UPDATE monthly_payrolls (Status: DRAFT)\n(ON CONFLICT DO UPDATE)
+Salary -> Client : Return Payroll List Data
+Client -> Manager : Render Payroll Table UI
+@enduml

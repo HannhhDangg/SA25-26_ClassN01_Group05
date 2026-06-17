@@ -1,0 +1,41 @@
+@startuml seq_approve_leave
+!theme plain
+title Sequence Diagram: Leave Request Approval/Rejection Flow
+
+skinparam maxMessageSize 150
+
+actor "Manager/Admin" as Manager
+participant "React SPA (Manager)" as ClientManager
+participant "Kong API Gateway" as Gateway
+participant "Leave Service" as Leave
+database "PostgreSQL (HA)" as PG
+database "MongoDB" as Mongo
+participant "Socket.IO / Redis" as Socket
+participant "React SPA (Staff)" as ClientStaff
+
+Manager -> ClientManager : Click "Approve" or "Reject" (with reason)
+ClientManager -> Gateway : PUT /api/leaves/:id/status
+Gateway -> Leave : Route Request
+
+Leave -> Leave : Verify JWT Token
+Leave -> PG : Fetch Leave Request & Check RBAC \n(Manager can only approve their dept)
+
+alt Unauthorized / Invalid State
+    Leave -> ClientManager : 403/404 Error
+else Authorized
+    Leave -> PG : UPDATE leave_requests SET status = 'APPROVED/REJECTED'
+    Leave -> Mongo : INSERT LeaveLog (Action: APPROVED/REJECTED)
+    
+    Note over Leave, PG: Async Notification Task
+    Leave -> PG : INSERT INTO announcements \n(target_type = 'INDIVIDUAL')
+    
+    Leave -> Socket : io.emit("leave_status_update", target_user)
+    Leave -> Socket : io.emit("new_announcement", target_user)
+    
+    Leave -> ClientManager : 200 OK (Updated Successfully)
+    ClientManager -> Manager : Refresh UI & Show Toast
+    
+    Socket -> ClientStaff : Push Events (Status Update & New Notification)
+    ClientStaff -> ClientStaff : Show Toast & Update Bell Badge
+end
+@enduml

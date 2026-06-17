@@ -1,0 +1,34 @@
+@startuml seq_submit_leave_request
+!theme plain
+title Sequence Diagram: Submit Leave Request Flow
+
+skinparam maxMessageSize 150
+
+actor "Staff" as Staff
+participant "React SPA (Staff)" as ClientStaff
+participant "Kong API Gateway" as Gateway
+participant "Leave Service" as Leave
+database "PostgreSQL (HA)" as PG
+database "MongoDB" as Mongo
+participant "Socket.IO / Redis" as Socket
+participant "React SPA (Manager)" as ClientManager
+
+Staff -> ClientStaff : Fill out leave form & Click Submit
+ClientStaff -> Gateway : POST /api/leaves
+Gateway -> Leave : Route Request
+
+Leave -> Leave : Verify JWT Token
+Leave -> PG : Validate Business Logic \n(Leave balance, daily absence limit)
+
+alt Invalid Logic (Exceeds limit/continuous days)
+    Leave -> ClientStaff : 400 Bad Request (With Error Message)
+else Valid Request
+    Leave -> PG : INSERT INTO leave_requests \n(status = 'PENDING')
+    Leave -> Mongo : INSERT LeaveLog \n(Action: CREATE)
+    Leave -> Socket : io.emit("new_leave_request", target: Manager)
+    Leave -> ClientStaff : 201 Created (Submitted successfully)
+    
+    Socket -> ClientManager : Push Event "new_leave_request"
+    ClientManager -> ClientManager : Increment Notification Badge & Show Toast
+end
+@enduml

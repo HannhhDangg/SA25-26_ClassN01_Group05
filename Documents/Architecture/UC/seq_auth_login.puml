@@ -1,0 +1,34 @@
+@startuml seq_auth_login
+!theme plain
+title Sequence Diagram: User Login & Session Management
+
+skinparam maxMessageSize 150
+
+actor "User" as User
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Auth Service" as Auth
+database "PostgreSQL (HA)" as PG
+database "Redis (Cache)" as Redis
+
+User -> Client : Input Username & Password
+Client -> Gateway : POST /api/auth/login
+Gateway -> Auth : Route Request (Rate Limited)
+
+Auth -> PG : Query User by Username
+PG --> Auth : Return User Record (incl. Hashed Password)
+
+alt User Not Found or Status != ACTIVE
+    Auth -> Client : 400/403 Error (Invalid Credentials / Inactive)
+else User Exists & Active
+    Auth -> Auth : Bcrypt.compare(password, hashedPassword)
+    alt Password Mismatch
+        Auth -> Client : 400 Error (Invalid Credentials)
+    else Password Match
+        Auth -> Auth : Generate JWT Token (payload: id, role, dept)
+        Auth -> Redis : SET session:<user_id> with TTL (1 day)
+        Auth -> Client : 200 OK (Return Token & User Info)
+        Client -> User : Save Token & Redirect to Dashboard
+    end
+end
+@enduml

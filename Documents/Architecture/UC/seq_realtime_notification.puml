@@ -1,0 +1,30 @@
+@startuml seq_realtime_notification
+!theme plain
+title Sequence Diagram: Real-time Notification Broadcasting
+
+skinparam maxMessageSize 150
+
+actor "Admin/Manager" as Admin
+participant "React SPA (Sender)" as ClientAdmin
+participant "Kong API Gateway" as Gateway
+participant "Noti Service" as Noti
+database "PostgreSQL (HA)" as PG
+database "MongoDB" as Mongo
+participant "Socket.IO / Redis" as Socket
+participant "React SPA (Receiver)" as ClientUser
+
+Admin -> ClientAdmin : Compose Announcement & Send
+ClientAdmin -> Gateway : POST /api/noti/announcements \n(title, content, target)
+Gateway -> Noti : Route Request
+
+Noti -> Noti : Verify JWT & Check Permissions
+Noti -> PG : INSERT INTO announcements \n(Save business data)
+Noti -> Mongo : INSERT NotificationLog \n(Action: 'SENT' Audit Trail)
+
+Noti -> Socket : io.emit("new_announcement", payload)
+Noti -> ClientAdmin : 201 Created (Sent successfully)
+ClientAdmin -> Admin : Show Success Toast
+
+Socket -> ClientUser : Receive Event "new_announcement"
+ClientUser -> ClientUser : Check Target Rule (Role, Dept, Email) & Increment Unread Badge
+@enduml

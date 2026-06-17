@@ -1,0 +1,40 @@
+@startuml act_leave_approval
+!theme plain
+title Activity Diagram: Leave Request & Approval Flow
+
+|Staff|
+start
+:Submit Leave Request\n(Type, Dates, Reason);
+
+|System (Leave Service)|
+:Validate Business Logic\n(Balance, Max Days, Daily Limit);
+if (Is Request Valid?) then (Yes)
+  :Save Request as PENDING;
+  :Log Action to MongoDB;
+  :Emit "new_leave_request"\nvia Socket.IO;
+else (No)
+  :Return "Validation Error";
+  stop
+endif
+
+|Manager|
+:Receive Real-time Notification;
+:Review Request;
+if (Decision) then (Approve)
+  |System (Leave Service)|
+  :Update Status to APPROVED;
+  :Deduct Leave Balance;
+else (Reject)
+  |System (Leave Service)|
+  :Update Status to REJECTED;
+  :Log Rejection Reason;
+endif
+
+|System (Leave Service)|
+:Log Action to MongoDB;
+:Emit "leave_status_update" Event;
+
+|Staff|
+:Receive Result Notification;
+stop
+@enduml

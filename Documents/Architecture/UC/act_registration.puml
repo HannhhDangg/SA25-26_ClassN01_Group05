@@ -1,0 +1,38 @@
+@startuml act_registration
+!theme plain
+title Activity Diagram: Registration & Authentication Flow
+
+|User|
+start
+:Enter Registration Data\n(Username, Email, Password);
+
+|System (Auth Service)|
+:Validate Input;
+:Generate 6-digit OTP;
+:Send OTP via Email;
+
+|User|
+:Input OTP;
+
+|System (Auth Service)|
+if (Is OTP Valid & Not Expired?) then (Yes)
+  :Create Account\n(Status: PENDING_ADMIN);
+  :Emit "new_user_registered" Event;
+else (No)
+  :Return Error\n"Invalid/Expired OTP";
+  stop
+endif
+
+|Admin|
+:Receive Real-time Notification;
+:Review New Account Details;
+if (Approve Account?) then (Yes)
+  |System (Auth Service)|
+  :Update Status to ACTIVE;
+  :Allow Login;
+else (No)
+  |System (Auth Service)|
+  :Update Status to REJECTED\n(or Delete);
+endif
+stop
+@enduml

@@ -1,0 +1,35 @@
+@startuml act_calc_payroll
+!theme plain
+title Activity Diagram: Automated Payroll Calculation Flow
+
+|Manager|
+start
+:Trigger Payroll Calculation\n(Select Month/Year);
+
+|System (Salary Service)|
+:Fetch Standard Work Days\n(Exclude Sundays & Holidays);
+
+|Database (PostgreSQL)|
+:Query Active Users;
+:Query Attendance Logs;
+:Query Approved Leaves;
+:Query Settings (Penalties);
+
+|System (Salary Service)|
+while (More Users?) is (Yes)
+  if (Is Payroll already PAID?) then (Yes)
+    :Skip User;
+  else (No)
+    :Aggregate Logs & Leaves for the Month;
+    :Calculate Total Work Days;
+    :Calculate Late/Early Penalties;
+    :Calculate Unexcused Absence Penalties;
+    :Compute Final Net Salary;
+    :UPSERT to `monthly_payrolls`\n(Status: DRAFT);
+  endif
+endwhile (No)
+
+|Manager|
+:View Draft Payroll Table UI;
+stop
+@enduml

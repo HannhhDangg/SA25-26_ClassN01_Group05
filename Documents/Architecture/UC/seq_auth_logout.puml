@@ -1,0 +1,22 @@
+@startuml seq_auth_logout
+!theme plain
+title Sequence Diagram: User Logout & Session Invalidation
+
+skinparam maxMessageSize 150
+
+actor "User" as User
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Auth Service" as Auth
+database "Redis (Cache)" as Redis
+
+User -> Client : Click "Logout"
+Client -> Gateway : POST /api/auth/logout \n(Header: Authorization Bearer JWT)
+Gateway -> Auth : Route Request
+
+Auth -> Auth : Verify JWT & Extract user_id
+Auth -> Redis : DEL session:<user_id> \n(Token Blacklisting / Session Invalidation)
+
+Auth -> Client : 200 OK (Logout Successful)
+Client -> User : Clear Local Storage & Redirect to Login Screen
+@enduml

@@ -1,0 +1,24 @@
+@startuml seq_mark_notification_read
+!theme plain
+title Sequence Diagram: Mark Notification as Read
+
+skinparam maxMessageSize 150
+
+actor "User" as User
+participant "React SPA" as Client
+participant "Kong API Gateway" as Gateway
+participant "Noti Service" as Noti
+database "PostgreSQL (HA)" as PG
+database "MongoDB" as Mongo
+
+User -> Client : Click on Unread Notification
+Client -> Gateway : PUT /api/noti_ser/announcements/:id/read
+Gateway -> Noti : Route Request
+
+Noti -> Noti : Verify JWT Token & Extract user_id
+
+Noti -> PG : INSERT INTO announcement_reads \n(announcement_id, user_id) \nON CONFLICT DO NOTHING
+Noti -> Mongo : INSERT NotificationLog \n(Action: 'READ', performed_by: user_id)
+
+Noti -> Client : 200 OK (Marked as read)
+@enduml
