@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../db");
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const LeaveLog = require("../models/LeaveLog");
 const jwt = require("jsonwebtoken"); // 🔥 Bổ sung thư viện JWT
 
@@ -10,8 +11,12 @@ const jwt = require("jsonwebtoken"); // 🔥 Bổ sung thư viện JWT
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Sử dụng đường dẫn tuyệt đối dựa trên thư mục gốc của project trong Docker
-    // Điều này đảm bảo Multer luôn tìm thấy folder /app/uploads
-    cb(null, path.join(process.cwd(), "uploads"));
+    const uploadPath = path.join(process.cwd(), "uploads");
+    // Kiểm tra và tự động tạo thư mục nếu chưa tồn tại
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);

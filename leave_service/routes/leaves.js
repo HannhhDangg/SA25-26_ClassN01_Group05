@@ -17,7 +17,7 @@ router.get("/stats/admin-summary", async (req, res) => {
 
     if (currentUser.role === "SUPERADMIN" || currentUser.role === "ADMIN") {
       const userRes = await pool.query("SELECT COUNT(*) FROM users");
-      const absentRes = await pool.query(`SELECT COUNT(*) FROM leave_requests WHERE status = 'APPROVED' AND CURRENT_DATE BETWEEN start_date AND end_date`);
+      const absentRes = await pool.query(`SELECT COUNT(*) FROM leave_requests WHERE status = 'APPROVED' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE BETWEEN start_date AND end_date`);
 
       const pendingRes = await pool.query(`
         SELECT COUNT(*) FROM leave_requests lr
@@ -36,7 +36,7 @@ router.get("/stats/admin-summary", async (req, res) => {
         const userRes = await pool.query("SELECT COUNT(*) FROM users WHERE department_id = $1 OR id = $2", [deptId, currentUser.id]);
         const absentRes = await pool.query(`
           SELECT COUNT(*) FROM leave_requests lr JOIN users u ON lr.user_id = u.id
-          WHERE lr.status = 'APPROVED' AND CURRENT_DATE BETWEEN lr.start_date AND lr.end_date AND (u.department_id = $1 OR u.id = $2)
+          WHERE lr.status = 'APPROVED' AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE BETWEEN lr.start_date AND lr.end_date AND (u.department_id = $1 OR u.id = $2)
         `, [deptId, currentUser.id]);
 
         const pendingRes = await pool.query(`
@@ -49,7 +49,7 @@ router.get("/stats/admin-summary", async (req, res) => {
         pendingLeaves = parseInt(pendingRes.rows[0].count);
       } else {
         totalUsers = 1;
-        const absentSelf = await pool.query(`SELECT COUNT(*) FROM leave_requests WHERE status = 'APPROVED' AND user_id = $1 AND CURRENT_DATE BETWEEN start_date AND end_date`, [currentUser.id]);
+        const absentSelf = await pool.query(`SELECT COUNT(*) FROM leave_requests WHERE status = 'APPROVED' AND user_id = $1 AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE BETWEEN start_date AND end_date`, [currentUser.id]);
         absentToday = parseInt(absentSelf.rows[0].count);
         pendingLeaves = 0;
       }
@@ -91,7 +91,7 @@ router.get("/stats/today", async (req, res) => {
       SELECT COUNT(*) as count 
       FROM leave_requests 
       WHERE status = 'APPROVED' 
-        AND CURRENT_DATE BETWEEN start_date AND end_date
+        AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE BETWEEN start_date AND end_date
     `);
     res.json({ count: parseInt(result.rows[0].count) });
   } catch (err) { res.status(500).json({ count: 0 }); }
